@@ -1,0 +1,7 @@
+name: "lmi_by_utility"
+output_dir: "docs" ## if making website hostable on github with jekyll
+navbar:
+  title: "LMI by Utility"
+  right:
+    - text: "Home"
+      href: LMI-by-Utility.html
