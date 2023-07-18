@@ -4,4 +4,4 @@ navbar:
   title: "LMI by Utility"
   right:
     - text: "Home"
-      href: LMI-by-Utility.html
+      href: index.html
