@@ -3,8 +3,11 @@ title: "LMI by Utility"
 author: "Jacob Ford"
 date: "2023-07-11"
 output: 
-  rmdformats::material
+  rmdformats::downcute:
+    toc_depth: 2
 ---
+
+
 
 # Overview
 
@@ -366,7 +369,9 @@ datatable(temp, caption = "New Mexico")%>%
 
 
 
-# Tract Level Map
+# Maps
+
+## Census Tracts
 
 
 
@@ -390,6 +395,51 @@ leaflet() %>%
 
 
 ```
+
+
+
+## New Jersey
+
+```{r}
+nj_utility_zone <- nj_utility_zone %>%
+  mutate(name_2 = ifelse(grepl("Municipal", NAME), "Municipal", nj_utility_zone$NAME))
+
+
+#nj_utility_zone$NAME <- as.factor(nj_utility_zone$NAME)
+
+# Choose a color palette for the categorical variable
+num_categories <- length(levels(nj_utility_zone$name_2))
+color_palette <- brewer.pal(num_categories, "Set3") # You can choose any palette you prefer
+
+# Create a named color palette for leaflet to use in legend
+pal <- colorFactor(color_palette, levels(nj_utility_zone$name_2))
+
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+    addPolygons(data = nj_utility_zone,
+                fillColor = ~pal(nj_utility_zone$name_2),
+              #  color = "black",
+                fillOpacity = 0.75,
+              #  opacity = 1,
+                weight = 2,
+                dashArray = "3",
+                popup=paste("Utility Name: ", nj_utility_zone$name_2)) %>%
+  addLegend("bottomright", 
+            pal=pal,
+            values = nj_utility_zone$name_2)
+
+
+```
+
+
+
+
+
+
+
+
+
 
 
 
