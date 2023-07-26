@@ -35,7 +35,7 @@ library(DT)
 library(kableExtra)
 library(ggmap)
 source('helper_functions.R')
-
+library(RColorBrewer)
 
 options(scipen = 100)
 
@@ -340,6 +340,22 @@ datatable(temp, caption = "Illinois")%>%
 Source: HIFLD
 
 
+LMI Qualification: 
+
+  * medicaid
+    
+  * SNAP
+  * LIHEAP
+  * first-time home owner programs
+  * affordable housing facilities
+  * low-income housing
+  * state and federal income tax credit
+  * entire multi-family housing project may qualify if the entire load can be proved to be low-income subscribers, with consent of all tenants of record.
+  
+  
+```{r message=FALSE, warning=FALSE}
+acs_vars <- load_variables(2021, "acs5")
+```
 
 
 
@@ -400,7 +416,7 @@ leaflet() %>%
 
 ## New Jersey
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 nj_utility_zone <- nj_utility_zone %>%
   mutate(name_2 = ifelse(grepl("Municipal", NAME), "Municipal", nj_utility_zone$NAME))
 
@@ -409,7 +425,7 @@ nj_utility_zone <- nj_utility_zone %>%
 
 # Choose a color palette for the categorical variable
 num_categories <- length(levels(nj_utility_zone$name_2))
-color_palette <- brewer.pal(num_categories, "Set3") # You can choose any palette you prefer
+color_palette <- brewer.pal(num_categories, "Set3") 
 
 # Create a named color palette for leaflet to use in legend
 pal <- colorFactor(color_palette, levels(nj_utility_zone$name_2))
