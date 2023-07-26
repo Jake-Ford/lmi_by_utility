@@ -1,7 +1,7 @@
 ---
 title: "LMI by Utility"
 author: "Jacob Ford"
-date: "2023-07-11"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   rmdformats::downcute:
     toc_depth: 2
@@ -63,6 +63,11 @@ get_tracts <- get_acs(
 
 
 ```
+
+
+
+
+
 
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
@@ -343,18 +348,42 @@ Source: HIFLD
 LMI Qualification: 
 
   * medicaid
+    - total count of population with Medicaid- C27007_004 + C27007_007 + C27007_010 + C27007_014 + C27007_017 + C27007_020
+    - geo: tract
     
   * SNAP
+    - total count of HH received Food Stamps/SNAP in last 12 months - B22001_002
+    - total count of population received Food Stamps/SNAP in last 12 months - B19058_002
+    - geo: tract
   * LIHEAP
+    - use this to calculate income by self attestation? 
+    https://www.acf.hhs.gov/sites/default/files/documents/ocs/comm_liheap_im2002smiattachment_fy2021.pdf
+    
   * first-time home owner programs
   * affordable housing facilities
+    - HUD data: https://resources.hud.gov/#layers-menu
+    - state specific to supplement: https://housingnm.org/find-housing/rentals/affordable
   * low-income housing
   * state and federal income tax credit
   * entire multi-family housing project may qualify if the entire load can be proved to be low-income subscribers, with consent of all tenants of record.
   
+  LMI - 80% of AMI from HUD
   
-```{r message=FALSE, warning=FALSE}
-acs_vars <- load_variables(2021, "acs5")
+  
+  
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+acs_vars <- load_variables(2019, "acs5")
+```
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+nm_blocks <- get_acs(
+  geography="tract", 
+  state="NM",
+  variables=c("snap_hh" = "B22001_002",
+              "medicaid_under19" = "C27007_004"),
+  year=2019, 
+  geometry=TRUE)
+
 ```
 
 
@@ -371,17 +400,91 @@ temp <- add_geo %>%
   st_drop_geometry() %>%
   group_by(Name = NAME) %>%
   filter(!is.na(Name)) %>%
-  summarize(`Pop under 100 AMI` = (sum(AMI_100))) %>%
-  arrange(desc(`Pop under 100 AMI`)) %>%
+  summarize(`Pop under 80 AMI` = (sum(AMI_80))) %>%
+  arrange(desc(`Pop under 80 AMI`)) %>%
   adorn_totals("row") 
 
 datatable(temp, caption = "New Mexico")%>%
-  formatCurrency('Pop under 100 AMI',currency = "", interval = 3, mark = ",")
+  formatCurrency('Pop under 80 AMI',currency = "", interval = 3, mark = ",")
 
 
 
 
 ```
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+nm_df <- add_geo %>%
+  filter(State_Name == "New Mexico") 
+
+pal <- colorNumeric(
+  palette = "Reds",
+ # reverse=TRUE,
+  domain = nm_df$AMI_80)
+
+pal2 <- colorNumeric(
+  palette = "Purples",
+ # reverse=TRUE,
+  domain = nm_df$AMI_80_Pct)
+
+
+temp_util <- hifld_df %>%
+  filter(STATE == "NM")
+
+map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zone",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0
+              ) %>%
+  
+  addPolygons(
+    data = nm_df,
+    group="Count",
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.7,
+    color=~pal(AMI_80),
+    popup=paste("Tract: ", nm_df$geoid, "<br>", 
+                "HHs at 80% AMI: ", nm_df$AMI_100)) %>%
+
+  addLegend("bottomleft",
+            group="Count",
+            pal = pal,
+            values = nm_df$AMI_80,
+            title="Number of HHs at 80% AMI") %>%
+  addPolygons(
+    data=nm_df,
+    group="Percent",
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.7,
+    color=~pal2(AMI_80_Pct),
+    popup=paste("Tract: ", nm_df$geoid, "<br>", 
+                "Percent of HHs at 80% AMI: ", nm_df$AMI_80_Pct)) %>%
+  
+  addLegend("bottomleft",
+            group="Percent",
+            pal = pal2,
+            values = nm_df$AMI_80_Pct,
+            title="Percent of HHs at 80% AMI") %>%
+    
+  addLayersControl(
+    overlayGroups=c("Percent", "Count", "Utility Zone"),
+    options = layersControlOptions(collapsed = FALSE)) 
+
+map %>%
+  hideGroup("Percent")
+```
+
+
+
 
 
 
