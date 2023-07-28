@@ -359,7 +359,7 @@ Take each affordable rental property listed on the [MFA Housing New Mexico](http
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 # nm_data <- read_excel("nm_public_housing.xlsx")
 # 
-# register_google( key='AIzaSyAoldbWBmW88JZSqiNDW4cKDgIbHI_umco')
+# 
 # 
 # library(ggmap)
 # 
