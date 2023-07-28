@@ -1,5 +1,5 @@
 ---
-title: "LMI by Utility"
+title: "LMI Population Spatial Analysis"
 author: "Jacob Ford"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
@@ -8,14 +8,12 @@ output:
 ---
 
 
-
 # Overview
 
-This document quantifies the number of LMI households by utility zone in select states. We define LMI as the number of households earning up to 100% of AMI, as defined and provided by HUD's PD&R Comprehensive Housing Affordability Strategy [CHAS](https://www.huduser.gov/portal/datasets/cp.html#2006-2019_data). 
+This document quantifies the number of LMI households by utility zone in select states. We use state specific LMI definitions and overlay utility zones to estimate the LMI population covered. 
 
 Utility coverage is provided by either the [HIFLD](https://hifld-geoplatform.opendata.arcgis.com/datasets/f4cd55044b924fed9bc8b64022966097/explore?location=41.065293%2C-80.583661%2C6.90) national level electric retail service territories or, preferably, state sources that are more granular. Note HIFLD often provides overlapping areas (ex: a municipal boundary and an utility provider) that result in the number of households up to 100% AMI being counted multiple times. 
 
-We start with the following states: New Jersey, New York, Massachusetts, Minnesota, Illinois and New Mexico. 
 
 
 
@@ -61,7 +59,6 @@ get_tracts <- get_acs(
   select(geoid=GEOID, geometry)
 
 
-
 ```
 
 
@@ -81,93 +78,18 @@ chas_df <- load_chas() %>%
     state == 36 ~ "New York",
     TRUE ~ "Other"
   ))
-```
 
 
-## Total LMI by State
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
-
-
-total_100_by_state <- chas_df %>%
-  group_by(State_Name) %>%
-  summarize(`Pop under 100 AMI` = comma(sum(AMI_100)))
-
-datatable(total_100_by_state)
-
-
-```
-
-## Total LMI by State and Utilities (HIFLD)
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
 add_geo <- merge(chas_df, get_tracts) 
 
 add_geo <- st_as_sf(add_geo)
 
+add_geo <- add_geo %>%
+  filter(State_Name=="New Mexico")
+
 hifld_df <- st_transform(hifld_df, st_crs(add_geo)) %>%
   st_make_valid()
-
-
-
-temp <- add_geo %>% 
-  st_point_on_surface() %>%
-  st_make_valid() %>%
-  st_join(hifld_df %>% select(NAME, STATE)) %>%
-  st_drop_geometry() %>%
-  group_by(NAME, State_Name) %>%
-  summarize(`Pop under 100 AMI` = comma(sum(AMI_100)))
-
-
-
-datatable(temp)
-
-```
-
-
-## New Jersey
-
-[source](https://njogis-newjersey.opendata.arcgis.com/datasets/d23845cc51454ee59affd226cff3fcd5/explore?location=40.371686%2C-74.066938%2C8.81)
-
-```{r message=FALSE, warning=FALSE, include=FALSE}
-nj_utility_zone <- st_read("utility_zones/NJ/Electric_Utilities_Territory_Map_of_New_Jersey.shp")
-
-nj_utility_zone <- st_as_sf(nj_utility_zone)
-
-nj_utility_zone <- st_transform(nj_utility_zone, st_crs(get_tracts)) %>%
-  st_make_valid()
-
-nj_utility_zone <- st_transform(nj_utility_zone, st_crs(add_geo)) %>%
-  st_make_valid()
-
-
-```
-
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-
-
-library(dplyr)
-library(DT)
-
-temp <- add_geo %>%
-  st_point_on_surface() %>%
-  st_make_valid() %>%
-  st_join(nj_utility_zone %>% select(NAME)) %>%
-  st_drop_geometry() %>%
-  group_by(NAME) %>%
-  filter(!is.na(NAME)) %>%
-  summarize(`Pop under 100 AMI` = (sum(AMI_100)))  %>%
-  arrange(desc(`Pop under 100 AMI`)) %>%
-  adorn_totals("row")
-
-datatable(temp, caption = "New Jersey")%>%
-  formatCurrency('Pop under 100 AMI',currency = "", interval = 3, mark = ",")
-
-
 ```
 
 
@@ -175,237 +97,115 @@ datatable(temp, caption = "New Jersey")%>%
 
 
 
-
-## New York
-
-
-
-```{r message=FALSE, warning=FALSE, include=FALSE}
-ny_utility_zone <- st_read("utility_zones/NY/geo_export_6ffc58c8-cc9c-4a2d-8e20-b8853521c568.shp") %>%
-  filter(grepl("Municipal", comp_short) == FALSE) # drop the muni's 
-
-ny_utility_zone <- st_as_sf(ny_utility_zone)
-
-ny_utility_zone <- st_transform(ny_utility_zone, st_crs(get_tracts)) %>%
-  st_make_valid()
-
-ny_utility_zone <- st_transform(ny_utility_zone, st_crs(add_geo)) %>%
-  st_make_valid()
-
-
-```
-
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-temp <- add_geo %>% 
-  st_point_on_surface() %>%
-  st_make_valid() %>%
-  st_join(ny_utility_zone %>% select(comp_short)) %>%
-  st_drop_geometry() %>%
-  group_by(Name = comp_short) %>%
-  filter(!is.na(Name)) %>%
-  summarize(`Pop under 100 AMI` = (sum(AMI_100))) %>%
-  arrange(desc(`Pop under 100 AMI`)) %>%
-  adorn_totals("row") 
-
-datatable(temp, caption = "New York")%>%
-  formatCurrency('Pop under 100 AMI',currency = "", interval = 3, mark = ",")
-
-
-```
-
-
-
-## Massachusetts
-
-[source](https://www.arcgis.com/apps/MapSeries/index.html?appid=7c70397fcdb64c6f9c01fcfca8c2269d)
-
-
-
-```{r message=FALSE, warning=FALSE, include=FALSE}
-temp_util <- st_read("utility_zones/MA/pubutil/TOWNS_POLY_V_ELEC.shp") 
-
-temp_util <- st_as_sf(temp_util)
-
-temp_util <- st_transform(temp_util, st_crs(get_tracts)) %>%
-  st_make_valid()
-
-temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
-  st_make_valid()
-
-
-```
-
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-temp <- add_geo %>% 
-  st_point_on_surface() %>%
-  st_make_valid() %>%
-  st_join(temp_util %>% select(ELEC_LABEL)) %>%
-  st_drop_geometry() %>%
-  group_by(Name = ELEC_LABEL) %>%
-  filter(!is.na(Name)) %>%
-  summarize(`Pop under 100 AMI` = (sum(AMI_100))) %>%
-  arrange(desc(`Pop under 100 AMI`)) %>%
-  adorn_totals("row") 
-
-
-datatable(temp, caption = "Massachusetts")%>%
-  formatCurrency('Pop under 100 AMI',currency = "", interval = 3, mark = ",")
-
-
-
-```
-
-
-
-## Minnesota
-
-[source](https://gisdata.mn.gov/dataset/util-eusa)
-
-
-```{r message=FALSE, warning=FALSE, include=FALSE}
-temp_util <- st_read("utility_zones/MN/Service_Areas.shp") 
-
-temp_util <- st_as_sf(temp_util)
-
-temp_util <- st_transform(temp_util, st_crs(get_tracts)) %>%
-  st_make_valid()
-
-temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
-  st_make_valid()
-
-
-```
-
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-temp <- add_geo %>% 
-  st_point_on_surface() %>%
-  st_make_valid() %>%
-  st_join(temp_util %>% select(utility)) %>%
-  st_drop_geometry() %>%
-  group_by(Name = utility) %>%
-  filter(!is.na(Name)) %>%
-  summarize(`Pop under 100 AMI` = (sum(AMI_100))) %>%
-  arrange(desc(`Pop under 100 AMI`)) %>%
-  adorn_totals("row") 
-
-
-
-datatable(temp, caption = "Minnesota")%>%
-  formatCurrency('Pop under 100 AMI',currency = "", interval = 3, mark = ",")
-
-
-
-
-
-```
-
-## Illinois
-
-Source: HIFLD
-
-
-
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-temp_util <- hifld_df %>%
-  filter(STATE == "IL")
-
-temp <- add_geo %>% 
-  st_point_on_surface() %>%
-  st_make_valid() %>%
-  st_join(temp_util %>% select(NAME)) %>%
-  st_drop_geometry() %>%
-  group_by(Name = NAME) %>%
-  filter(!is.na(Name)) %>%
-  summarize(`Pop under 100 AMI` = (sum(AMI_100))) %>%
-  arrange(desc(`Pop under 100 AMI`)) %>%
-  adorn_totals("row") 
-
-
-datatable(temp, caption = "Illinois")%>%
-  formatCurrency('Pop under 100 AMI',currency = "", interval = 3, mark = ",")
-
-
-
-```
 
 ## New Mexico
-
-Source: HIFLD
 
 
 LMI Qualification: 
 
-  * medicaid
-    - total count of population with Medicaid- C27007_004 + C27007_007 + C27007_010 + C27007_014 + C27007_017 + C27007_020
-    - geo: tract
-    
+  * Medicaid
   * SNAP
-    - total count of HH received Food Stamps/SNAP in last 12 months - B22001_002
-    - total count of population received Food Stamps/SNAP in last 12 months - B19058_002
-    - geo: tract
   * LIHEAP
-    - use this to calculate income by self attestation? 
-    https://www.acf.hhs.gov/sites/default/files/documents/ocs/comm_liheap_im2002smiattachment_fy2021.pdf
-    
-  * first-time home owner programs
-  * affordable housing facilities
+  * First-time home owner programs
+  * Affordable housing facilities
     - HUD data: https://resources.hud.gov/#layers-menu
     - state specific to supplement: https://housingnm.org/find-housing/rentals/affordable
-  * low-income housing
-  * state and federal income tax credit
-  * entire multi-family housing project may qualify if the entire load can be proved to be low-income subscribers, with consent of all tenants of record.
-  
-  LMI - 80% of AMI from HUD
+  * Low-income housing
+  * State and federal income tax credit
+  * Entire multi-family housing project may qualify if the entire load can be proved to be low-income subscribers, with consent of all tenants of record.
+  * *LMI - 80% of AMI*
   
   
   
 ```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+
+  # * Medicaid
+  #   - total count of population with Medicaid- C27007_004 + C27007_007 + C27007_010 + C27007_014 + C27007_017 + C27007_020
+  #   - geo: tract
+  #   
+  # * SNAP
+  #   - total count of HH received Food Stamps/SNAP in last 12 months - B22001_002
+  #   - total count of population received Food Stamps/SNAP in last 12 months - B19058_002
+  #   - geo: tract
+  # * LIHEAP
+  #   - use this to calculate income by self attestation? 
+  #   https://www.acf.hhs.gov/sites/default/files/documents/ocs/comm_liheap_im2002smiattachment_fy2021.pdf
+  #   
+  # * first-time home owner programs
+  # * affordable housing facilities
+  #   - HUD data: https://resources.hud.gov/#layers-menu
+  #   - state specific to supplement: https://housingnm.org/find-housing/rentals/affordable
+  # * low-income housing
+  # * state and federal income tax credit
+  # * entire multi-family housing project may qualify if the entire load can be proved to be low-income subscribers, with consent of all tenants of record.
+  # 
+  # LMI - 80% of AMI from HUD..
 acs_vars <- load_variables(2019, "acs5")
 ```
 
-```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE, include=FALSE}
 nm_blocks <- get_acs(
   geography="tract", 
   state="NM",
   variables=c("snap_hh" = "B22001_002",
-              "medicaid_under19" = "C27007_004"),
+              "snap_pop" = "B19058_002",
+              "medicaid_1" = "C27007_004",
+              "medicaid_2" = "C27007_007",
+              "medicaid_3" = "C27007_010",
+              "medicaid_4" = "C27007_014",
+              "medicaid_5" = "C27007_017",
+              "medicaid_6" = "C27007_020"
+              
+              ),
   year=2019, 
-  geometry=TRUE)
+  geometry=TRUE) %>%
+  group_by(GEOID) %>%
+  summarize(snap_hh = estimate[variable=="snap_pop"],
+            medicaid_pop =estimate[variable=="medicaid_1"] + 
+                          estimate[variable=="medicaid_2"] +
+                          estimate[variable=="medicaid_3"] +
+                          estimate[variable=="medicaid_4"] +
+                          estimate[variable=="medicaid_5"] +
+                          estimate[variable=="medicaid_6"] )
 
+total_nm_tracts <- cbind(add_geo, nm_blocks)
+
+
+nm_blocks
 ```
+
 
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 temp_util <- hifld_df %>%
-  filter(STATE == "NM")
+  filter(ID %in% c(15473, 10817)) %>%
+  mutate(new_name = case_when(
+    ID == 15473 ~ "Public Service Company",
+    ID == 10817 ~ "Xcel"
+  ))
 
-temp <- add_geo %>% 
+temp <- total_nm_tracts %>% 
   st_point_on_surface() %>%
   st_make_valid() %>%
   st_join(temp_util %>% select(NAME)) %>%
   st_drop_geometry() %>%
   group_by(Name = NAME) %>%
   filter(!is.na(Name)) %>%
-  summarize(`Pop under 80 AMI` = (sum(AMI_80))) %>%
+  summarize(`Pop under 80 AMI` = sum(AMI_80),
+            `Medicaid` = sum(medicaid_pop),
+            `SNAP` = sum(snap_hh),
+            `Total` = sum(Total_Pop)) %>%
   arrange(desc(`Pop under 80 AMI`)) %>%
   adorn_totals("row") 
 
 datatable(temp, caption = "New Mexico")%>%
-  formatCurrency('Pop under 80 AMI',currency = "", interval = 3, mark = ",")
+  formatCurrency('Pop under 80 AMI',currency = "", interval = 3, mark = ",") %>%
+  formatCurrency('Medicaid',currency = "", interval = 3, mark = ",") %>%
+  formatCurrency('SNAP',currency = "", interval = 3, mark = ",") %>%
+  formatCurrency('Total',currency = "", interval = 3, mark = ",")
+
 
 
 
@@ -415,7 +215,7 @@ datatable(temp, caption = "New Mexico")%>%
 
 
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=10, fig.width=8}
 
 nm_df <- add_geo %>%
   filter(State_Name == "New Mexico") 
@@ -430,9 +230,25 @@ pal2 <- colorNumeric(
  # reverse=TRUE,
   domain = nm_df$AMI_80_Pct)
 
+pal3 <- colorNumeric(
+  palette = "Greens",
+ # reverse=TRUE,
+  domain = nm_blocks$snap_hh)
 
+pal4 <- colorNumeric(
+  palette = "Blues",
+ # reverse=TRUE,
+  domain = nm_blocks$medicaid_pop)
+ 
+# 15473 Public Service
+# 10817 Xcel
 temp_util <- hifld_df %>%
-  filter(STATE == "NM")
+  filter(ID %in% c(15473, 10817)) %>%
+  mutate(new_name = case_when(
+    ID == 15473 ~ "Public Service Company",
+    ID == 10817 ~ "Xcel"
+  ))
+
 
 map <- leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
@@ -441,115 +257,92 @@ map <- leaflet() %>%
               stroke=TRUE,
               color="black",
               dashArray="3",
-              fillOpacity=0
-              ) %>%
+              fillOpacity=0,
+              popup=paste("Utility Zone: ", temp_util$new_name)
+  ) %>%
   
   addPolygons(
     data = nm_df,
-    group="Count",
+    group="80% AMI Count",  # This should be consistent with the group name in the addLegend function
     stroke=FALSE,
     smoothFactor=0.2,
     fillOpacity=0.7,
     color=~pal(AMI_80),
     popup=paste("Tract: ", nm_df$geoid, "<br>", 
-                "HHs at 80% AMI: ", nm_df$AMI_100)) %>%
+                "HHs at 80% AMI: ", nm_df$AMI_80)
+  ) %>%
 
   addLegend("bottomleft",
-            group="Count",
+            group="80% AMI Count",  # This should be consistent with the group name in the addPolygons function
             pal = pal,
             values = nm_df$AMI_80,
-            title="Number of HHs at 80% AMI") %>%
+            title="Number of HHs at 80% AMI"
+  ) %>%
+  
   addPolygons(
     data=nm_df,
-    group="Percent",
+    group="80% AMI Percent",  # This should be consistent with the group name in the addLegend function
     stroke=FALSE,
     smoothFactor=0.2,
     fillOpacity=0.7,
     color=~pal2(AMI_80_Pct),
     popup=paste("Tract: ", nm_df$geoid, "<br>", 
-                "Percent of HHs at 80% AMI: ", nm_df$AMI_80_Pct)) %>%
+                "Percent of HHs at 80% AMI: ", nm_df$AMI_80_Pct)
+  ) %>%
   
   addLegend("bottomleft",
-            group="Percent",
+            group="80% AMI Percent",  # This should be consistent with the group name in the addPolygons function
             pal = pal2,
             values = nm_df$AMI_80_Pct,
-            title="Percent of HHs at 80% AMI") %>%
-    
+            title="Percent of HHs at 80% AMI"
+  ) %>%
+  
+  addPolygons(
+    data=nm_blocks,
+    group="SNAP",
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.7,
+    color=~pal3(snap_hh),
+    popup=paste("Tract: ", nm_blocks$GEOID, "<br>", 
+                "Number of HHs Receiving SNAP: ", nm_blocks$snap_hh)
+  ) %>%
+  
+  addLegend("bottomleft",
+            group="SNAP",
+            pal = pal3,
+            values = nm_blocks$snap_hh,
+            title="Number of HHs Receiving SNAP:"
+  ) %>%
+  
+  addPolygons(
+    data=nm_blocks,
+    group="Medicaid",
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.7,
+    color=~pal4(medicaid_pop),
+    popup=paste("Tract: ", nm_blocks$GEOID, "<br>", 
+                "Number of HHs Receiving SNAP: ", nm_blocks$medicaid_pop)
+  ) %>%
+  
+  addLegend("bottomleft",
+            group="Medicaid",
+            pal = pal4,
+            values = nm_blocks$medicaid_pop,
+            title="Number of HHs Receiving SNAP:"
+  ) %>%
+   
   addLayersControl(
-    overlayGroups=c("Percent", "Count", "Utility Zone"),
-    options = layersControlOptions(collapsed = FALSE)) 
+    overlayGroups=c("80% AMI Percent", "80% AMI Count", "Utility Zone", "SNAP", "Medicaid"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
 
 map %>%
-  hideGroup("Percent")
-```
-
-
-
-
-
-
-# Maps
-
-## Census Tracts
-
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE,fig.height = 10, fig.width=8}
-
-color_palette <- colorNumeric(palette = c("green", "red"), domain = c(1, 100))
-
-temp <- add_geo  
-
-leaflet() %>%
-  addProviderTiles("CartoDB.Positron") %>%
-  addPolygons(data = temp, 
-              color =  ~color_palette(AMI_100_Pct * 100),
-              fillOpacity = 0.7, 
-              popup = paste("Census Tract: ", temp$name, "<br>",
-                            "Pct Below 100% AMI: ", scales::percent(temp$AMI_100_Pct))) %>%
-  addLegend("bottomright", 
-            pal = color_palette,
-            values = temp$AMI_100_Pct*100,
-            title = "Percent of Tract Less than 100% AMI")
-
+  hideGroup("80% AMI Percent") %>% hideGroup("SNAP") %>% hideGroup("80% AMI Count") %>% hideGroup("Medicaid")
 
 ```
 
-
-
-## New Jersey
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-nj_utility_zone <- nj_utility_zone %>%
-  mutate(name_2 = ifelse(grepl("Municipal", NAME), "Municipal", nj_utility_zone$NAME))
-
-
-#nj_utility_zone$NAME <- as.factor(nj_utility_zone$NAME)
-
-# Choose a color palette for the categorical variable
-num_categories <- length(levels(nj_utility_zone$name_2))
-color_palette <- brewer.pal(num_categories, "Set3") 
-
-# Create a named color palette for leaflet to use in legend
-pal <- colorFactor(color_palette, levels(nj_utility_zone$name_2))
-
-
-leaflet() %>%
-  addProviderTiles("CartoDB.Positron") %>%
-    addPolygons(data = nj_utility_zone,
-                fillColor = ~pal(nj_utility_zone$name_2),
-              #  color = "black",
-                fillOpacity = 0.75,
-              #  opacity = 1,
-                weight = 2,
-                dashArray = "3",
-                popup=paste("Utility Name: ", nj_utility_zone$name_2)) %>%
-  addLegend("bottomright", 
-            pal=pal,
-            values = nj_utility_zone$name_2)
-
-
-```
 
 
 
