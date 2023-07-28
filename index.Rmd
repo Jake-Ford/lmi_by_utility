@@ -354,7 +354,9 @@ map %>%
 
 ## Public Housing
 
-```{r}
+Take each affordable rental property listed on the [MFA Housing New Mexico](https://housingnm.org/find-housing/rentals/affordable) website. We'll calculate how many LMI populace is within various buffered boundaries of each point. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 # nm_data <- read_excel("nm_public_housing.xlsx")
 # 
 # register_google( key='AIzaSyAoldbWBmW88JZSqiNDW4cKDgIbHI_umco')
