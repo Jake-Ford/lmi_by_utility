@@ -67,6 +67,7 @@ get_tracts <- get_acs(
 
 
 
+
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 chas_df <- load_chas() %>%
     mutate(State_Name = case_when(
@@ -200,11 +201,11 @@ temp <- total_nm_tracts %>%
   arrange(desc(`Pop under 80 AMI`)) %>%
   adorn_totals("row") 
 
-datatable(temp, caption = "New Mexico")%>%
+datatable(temp, caption = "New Mexico, Sources: ACS 2019 and HUD CHAS")%>%
   formatCurrency('Pop under 80 AMI',currency = "", interval = 3, mark = ",") %>%
   formatCurrency('Medicaid',currency = "", interval = 3, mark = ",") %>%
   formatCurrency('SNAP',currency = "", interval = 3, mark = ",") %>%
-  formatCurrency('Total',currency = "", interval = 3, mark = ",")
+  formatCurrency('Total',currency = "", interval = 3, mark = ",") 
 
 
 
@@ -342,6 +343,129 @@ map %>%
   hideGroup("80% AMI Percent") %>% hideGroup("SNAP") %>% hideGroup("80% AMI Count") %>% hideGroup("Medicaid")
 
 ```
+
+
+
+
+
+
+
+
+
+## Public Housing
+
+```{r}
+# nm_data <- read_excel("nm_public_housing.xlsx")
+# 
+# register_google( key='AIzaSyAoldbWBmW88JZSqiNDW4cKDgIbHI_umco')
+# 
+# library(ggmap)
+# 
+# # Assuming your 'nm_data' dataframe has columns 'Address' and 'Address 2'
+# # Create a new column to store the full address (combining Address and Address 2)
+# nm_data$full_address <- paste(nm_data$Address, nm_data$`Address 2`, sep = ", ")
+# 
+# # Use geocode() to get latitude and longitude for each address
+# geocoded_data <- geocode(nm_data$full_address)
+# 
+# # Add latitude and longitude columns to the original dataframe
+# nm_data$Latitude <- geocoded_data$lat
+# nm_data$Longitude <- geocoded_data$lon
+# 
+# nm_data <- nm_data %>%
+#   filter(!is.na(Longitude))
+# 
+# nm_data <- st_as_sf(nm_data, coords = c("Longitude", "Latitude"), crs = st_crs(nm_blocks))
+
+# st_write(nm_data, "nm_public_housing.shp")
+
+nm_public_housing <- st_read("nm_public_housing.shp")
+
+library(leaflet.extras)
+
+
+nm_pub_in_util <- nm_public_housing %>%
+  st_point_on_surface() %>%
+  st_join(temp_util %>% select(util_name = NAME)) %>%
+  filter(!is.na(util_name))
+
+
+  map %>%
+
+  addMarkers(data=nm_public_housing,
+                   group="Public Housing",
+                #   color="black",
+                #   radius=2,
+                   popup=paste("Name: ", nm_public_housing$Name)) %>%
+  addMarkers(data = nm_pub_in_util,
+             group="Public Housing in Utility Zones",
+           #  color="red",
+            popup=paste("Name: ", nm_pub_in_util$util_name)) %>%
+
+
+  addLayersControl(
+    overlayGroups=c("80% AMI Percent", "80% AMI Count", "Utility Zone", "SNAP", "Medicaid", "Public Housing", "Public Housing in Utility Zones"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  hideGroup("80% AMI Percent") %>% hideGroup("SNAP") %>% hideGroup("80% AMI Count") %>% hideGroup("Medicaid") %>% hideGroup("Public Housing in Utility Zones")
+
+
+```
+
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+nm_public_housing_buffer <- st_buffer(nm_pub_in_util, dist = 10) # 1 mile = 1609.34 meters
+
+# Step 2: Identify census tracts that intersect with the 5-mile buffer
+intersecting_tracts <- st_intersection(total_nm_tracts, nm_public_housing_buffer)
+
+
+
+total_df <- data.frame(Measure = c("Medicaid", "SNAP", "80% AMI"),
+                       Buffer_1 = c(sum(intersecting_tracts$medicaid_pop), sum(intersecting_tracts$snap_hh), sum(intersecting_tracts$AMI_80)))
+
+nm_public_housing_buffer <- st_buffer(nm_pub_in_util, dist = 50) # 1 mile = 1609.34 meters
+
+# Step 2: Identify census tracts that intersect with the 5-mile buffer
+intersecting_tracts <- st_intersection(total_nm_tracts, nm_public_housing_buffer)
+
+
+total_df$Buffer_5 <- c(sum(intersecting_tracts$medicaid_pop), sum(intersecting_tracts$snap_hh), sum(intersecting_tracts$AMI_80))
+
+
+nm_public_housing_buffer <- st_buffer(nm_pub_in_util, dist = 100) # 1 mile = 1609.34 meters
+
+# Step 2: Identify census tracts that intersect with the 5-mile buffer
+intersecting_tracts <- st_intersection(total_nm_tracts, nm_public_housing_buffer)
+
+
+
+total_df$Buffer_10 <- c(sum(intersecting_tracts$medicaid_pop), sum(intersecting_tracts$snap_hh), sum(intersecting_tracts$AMI_80))
+
+
+
+
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+datatable(total_df, caption = "New Mexico Distance from Public Housing and Selected Characteristics")%>%
+  formatCurrency('Buffer_1',currency = "", interval = 3, mark = ",") %>%
+  formatCurrency('Buffer_5',currency = "", interval = 3, mark = ",") %>%
+  formatCurrency('Buffer_10',currency = "", interval = 3, mark = ",") 
+
+
+```
+
+
+
 
 
 
