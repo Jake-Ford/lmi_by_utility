@@ -12,7 +12,7 @@ output:
 
 This document quantifies the number of LMI households by utility zone in select states. We use state specific LMI definitions and overlay utility zones to estimate the LMI population covered. 
 
-Utility coverage is provided by either the [HIFLD](https://hifld-geoplatform.opendata.arcgis.com/datasets/f4cd55044b924fed9bc8b64022966097/explore?location=41.065293%2C-80.583661%2C6.90) national level electric retail service territories or, preferably, state sources that are more granular. Note HIFLD often provides overlapping areas (ex: a municipal boundary and an utility provider) that result in the number of households up to 100% AMI being counted multiple times. 
+Utility coverage is provided by either the [HIFLD](https://hifld-geoplatform.opendata.arcgis.com/datasets/f4cd55044b924fed9bc8b64022966097/explore?location=41.065293%2C-80.583661%2C6.90) national level electric retail service territories or, preferably, state sources that are more granular. Note HIFLD often provides overlapping areas (ex: a municipal boundary and an utility provider) so data should primarily be sourced from state sources or be validated from HIFLD. 
 
 
 
@@ -417,9 +417,8 @@ nm_pub_in_util <- nm_public_housing %>%
 
 
 
-
-
 ```{r message=FALSE, warning=FALSE, include=FALSE}
+
 
 nm_public_housing_buffer <- st_buffer(nm_pub_in_util, dist = 10) # 1 mile = 1609.34 meters
 
@@ -433,8 +432,10 @@ total_df <- data.frame(Measure = c("Medicaid", "SNAP", "80% AMI"),
 
 nm_public_housing_buffer <- st_buffer(nm_pub_in_util, dist = 50) # 1 mile = 1609.34 meters
 
+
 # Step 2: Identify census tracts that intersect with the 5-mile buffer
 intersecting_tracts <- st_intersection(total_nm_tracts, nm_public_housing_buffer)
+
 
 
 total_df$Buffer_5 <- c(sum(intersecting_tracts$medicaid_pop), sum(intersecting_tracts$snap_hh), sum(intersecting_tracts$AMI_80))
