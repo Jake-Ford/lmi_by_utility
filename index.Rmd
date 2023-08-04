@@ -40,14 +40,22 @@ options(scipen = 100)
 ```
 
 
-# Summary Tables
+# New Mexico
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
 state_list <- c("IL", "NM", "MA", "NY", "NJ", "MN")
 
-hifld_df <- st_read("utility_zones/HIFLD/Electric_Retail_Service_Territories (1)/Electric_Retail_Service_Territories.shp") %>%
-  filter(STATE %in% state_list)
+hifld_df <- st_read("utility_zones/HIFLD/Electric_Retail_Service_Territories (1)/Electric_Retail_Service_Territories.shp") 
+
+temp_util <- hifld_df %>%
+  filter(ID %in% c(15473, 10817, 5701)) %>%
+  mutate(new_name = case_when(
+    ID == 15473 ~ "Public Service Company",
+    ID == 10817 ~ "Xcel",
+    ID == 5701 ~ "El Paso Electric"
+  ))
+census_api_key('ba3d95cae3658f3145daf7f66119ed58a52aaca3')
 
 get_tracts <- get_acs(
   geography="tract", 
@@ -89,20 +97,45 @@ add_geo <- st_as_sf(add_geo)
 add_geo <- add_geo %>%
   filter(State_Name=="New Mexico")
 
-hifld_df <- st_transform(hifld_df, st_crs(add_geo)) %>%
+temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
   st_make_valid()
 ```
 
 
 
+Solstice operates in the following three utility zones in New Mexico:
+
+  * Public Service Company of New Mexico
+  * Excel
+  * El Paso Electric
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+pal5 <- colorFactor(
+  palette="viridis",
+  domain=temp_util$new_name
+)
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color=~pal5(temp_util$new_name),
+              dashArray="3",
+              fillOpacity=0.5,
+              popup=paste("Utility Zone: ", temp_util$new_name)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            values=temp_util$new_name,
+            title="Solstice NM Utilities")
+```
 
 
+## LMI Qualifications
 
+New Mexico LMI Qualification methods are detailed in the [policy matrix](https://coda.io/d/Solstice-Policy_dBUL-zOSfnb/Program-Matrix_suVJB#Program-Matrix_tuLIr/r11&view=full), but in summary include:
 
-## New Mexico
-
-
-LMI Qualification: 
 
   * Medicaid
   * SNAP
@@ -114,9 +147,12 @@ LMI Qualification:
   * Low-income housing
   * State and federal income tax credit
   * Entire multi-family housing project may qualify if the entire load can be proved to be low-income subscribers, with consent of all tenants of record.
-  * *LMI - 80% of AMI*
+  * **LMI - 80% of AMI**
   
+
+
   
+
   
 ```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 
@@ -141,7 +177,7 @@ LMI Qualification:
   # * entire multi-family housing project may qualify if the entire load can be proved to be low-income subscribers, with consent of all tenants of record.
   # 
   # LMI - 80% of AMI from HUD..
-acs_vars <- load_variables(2019, "acs5")
+# acs_vars <- load_variables(2019, "acs5")
 ```
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
@@ -180,12 +216,6 @@ nm_blocks
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-temp_util <- hifld_df %>%
-  filter(ID %in% c(15473, 10817)) %>%
-  mutate(new_name = case_when(
-    ID == 15473 ~ "Public Service Company",
-    ID == 10817 ~ "Xcel"
-  ))
 
 temp <- total_nm_tracts %>% 
   st_point_on_surface() %>%
@@ -216,6 +246,8 @@ datatable(temp, caption = "New Mexico, Sources: ACS 2019 and HUD CHAS")%>%
 
 
 
+
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=10, fig.width=8}
 
 nm_df <- add_geo %>%
@@ -240,21 +272,16 @@ pal4 <- colorNumeric(
   palette = "Blues",
  # reverse=TRUE,
   domain = nm_blocks$medicaid_pop)
+
+
  
-# 15473 Public Service
-# 10817 Xcel
-temp_util <- hifld_df %>%
-  filter(ID %in% c(15473, 10817)) %>%
-  mutate(new_name = case_when(
-    ID == 15473 ~ "Public Service Company",
-    ID == 10817 ~ "Xcel"
-  ))
+
 
 
 map <- leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(data=temp_util,
-              group="Utility Zone",
+              group="Utility Zones",
               stroke=TRUE,
               color="black",
               dashArray="3",
@@ -264,7 +291,7 @@ map <- leaflet() %>%
   
   addPolygons(
     data = nm_df,
-    group="80% AMI Count",  # This should be consistent with the group name in the addLegend function
+    group="80% AMI",  # This should be consistent with the group name in the addLegend function
     stroke=FALSE,
     smoothFactor=0.2,
     fillOpacity=0.7,
@@ -274,29 +301,29 @@ map <- leaflet() %>%
   ) %>%
 
   addLegend("bottomleft",
-            group="80% AMI Count",  # This should be consistent with the group name in the addPolygons function
+            group="80% AMI",  # This should be consistent with the group name in the addPolygons function
             pal = pal,
             values = nm_df$AMI_80,
             title="Number of HHs at 80% AMI"
   ) %>%
   
-  addPolygons(
-    data=nm_df,
-    group="80% AMI Percent",  # This should be consistent with the group name in the addLegend function
-    stroke=FALSE,
-    smoothFactor=0.2,
-    fillOpacity=0.7,
-    color=~pal2(AMI_80_Pct),
-    popup=paste("Tract: ", nm_df$geoid, "<br>", 
-                "Percent of HHs at 80% AMI: ", nm_df$AMI_80_Pct)
-  ) %>%
-  
-  addLegend("bottomleft",
-            group="80% AMI Percent",  # This should be consistent with the group name in the addPolygons function
-            pal = pal2,
-            values = nm_df$AMI_80_Pct,
-            title="Percent of HHs at 80% AMI"
-  ) %>%
+  # addPolygons(
+  #   data=nm_df,
+  #   group="80% AMI Percent",  # This should be consistent with the group name in the addLegend function
+  #   stroke=FALSE,
+  #   smoothFactor=0.2,
+  #   fillOpacity=0.7,
+  #   color=~pal2(AMI_80_Pct),
+  #   popup=paste("Tract: ", nm_df$geoid, "<br>", 
+  #               "Percent of HHs at 80% AMI: ", nm_df$AMI_80_Pct)
+  # ) %>%
+  # 
+  # addLegend("bottomleft",
+  #           group="80% AMI Percent",  # This should be consistent with the group name in the addPolygons function
+  #           pal = pal2,
+  #           values = nm_df$AMI_80_Pct,
+  #           title="Percent of HHs at 80% AMI"
+  # ) %>%
   
   addPolygons(
     data=nm_blocks,
@@ -335,7 +362,7 @@ map <- leaflet() %>%
   ) %>%
    
   addLayersControl(
-    overlayGroups=c("80% AMI Percent", "80% AMI Count", "Utility Zone", "SNAP", "Medicaid"),  # Update the order for consistency
+    overlayGroups=c( "80% AMI", "Utility Zones", "SNAP", "Medicaid"),  # Update the order for consistency
     options = layersControlOptions(collapsed = FALSE)
   )
 
@@ -344,11 +371,6 @@ map %>%
 
 ```
 
-
-
-```{r}
-getwd()
-```
 
 
 
@@ -377,14 +399,30 @@ Take each affordable rental property listed on the [MFA Housing New Mexico](http
 # nm_data$Latitude <- geocoded_data$lat
 # nm_data$Longitude <- geocoded_data$lon
 # 
-# nm_data <- nm_data %>%
+# nm_data <- nm_data %>%?
 #   filter(!is.na(Longitude))
 # 
 # nm_data <- st_as_sf(nm_data, coords = c("Longitude", "Latitude"), crs = st_crs(nm_blocks))
 
 # st_write(nm_data, "nm_public_housing.shp")
 
+
+
+
 nm_public_housing <- st_read("nm_public_housing.shp")
+
+# nm_public_housing_isos <- nm_public_housing %>%
+#   mb_isochrone(time = 30, profile = "driving", id_column = "Name",
+#                access_token = "blahblahblah"
+
+nm_public_housing_isos_15 <- st_read("nm_public_housing_isos_15.shp") 
+nm_public_housing_isos_15 <- st_transform(nm_public_housing_isos_15, st_crs(nm_public_housing))
+
+nm_public_housing_isos_30 <- st_read("nm_public_housing_isos_30.shp")
+nm_public_housing_isos_30 <- st_transform(nm_public_housing_isos_30, st_crs(nm_public_housing))
+
+
+
 
 library(leaflet.extras)
 
@@ -406,7 +444,7 @@ nm_pub_in_util <- nm_public_housing %>%
              group="Public Housing in Utility Zones",
            #  color="red",
             popup=paste("Name: ", nm_pub_in_util$util_name)) %>%
-
+  addPolygons(data =nm_public_housing_isos_15 ) %>%
 
   addLayersControl(
     overlayGroups=c("80% AMI Percent", "80% AMI Count", "Utility Zone", "SNAP", "Medicaid", "Public Housing", "Public Housing in Utility Zones"),  # Update the order for consistency
