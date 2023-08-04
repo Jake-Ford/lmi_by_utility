@@ -8,9 +8,10 @@ output:
 ---
 
 
+
 # Overview
 
-This document quantifies the number of LMI households by utility zone in select states. We use state specific LMI definitions and overlay utility zones to estimate the LMI population covered. 
+This document quantifies the number of LMI households by utility zone in select states. We use state specific LMI definitions and overlay utility zones to estimate the LMI population covered. The goal of this work is to provide data driven insights when new markets are considered with LMI requirements. 
 
 Utility coverage is provided by either the [HIFLD](https://hifld-geoplatform.opendata.arcgis.com/datasets/f4cd55044b924fed9bc8b64022966097/explore?location=41.065293%2C-80.583661%2C6.90) national level electric retail service territories or, preferably, state sources that are more granular. Note HIFLD often provides overlapping areas (ex: a municipal boundary and an utility provider) so data should primarily be sourced from state sources or be validated from HIFLD. 
 
@@ -150,6 +151,7 @@ New Mexico LMI Qualification methods are detailed in the [policy matrix](https:/
   * **LMI - 80% of AMI**
   
 
+Census data is available for the population receiving Medicaid, SNAP, and number of households at or below 80% AMI. The following analysis quantifies the total eligible LMI population by each of these three categories.
 
   
 
@@ -191,7 +193,8 @@ nm_blocks <- get_acs(
               "medicaid_3" = "C27007_010",
               "medicaid_4" = "C27007_014",
               "medicaid_5" = "C27007_017",
-              "medicaid_6" = "C27007_020"
+              "medicaid_6" = "C27007_020",
+              "Total_Pop" = "B01001_001"
               
               ),
   year=2019, 
@@ -203,7 +206,8 @@ nm_blocks <- get_acs(
                           estimate[variable=="medicaid_3"] +
                           estimate[variable=="medicaid_4"] +
                           estimate[variable=="medicaid_5"] +
-                          estimate[variable=="medicaid_6"] )
+                          estimate[variable=="medicaid_6"] ,
+            total_pop = estimate[variable=="Total_Pop"])
 
 total_nm_tracts <- cbind(add_geo, nm_blocks)
 
@@ -227,15 +231,14 @@ temp <- total_nm_tracts %>%
   summarize(`Pop under 80 AMI` = sum(AMI_80),
             `Medicaid` = sum(medicaid_pop),
             `SNAP` = sum(snap_hh),
-            `Total` = sum(Total_Pop)) %>%
-  arrange(desc(`Pop under 80 AMI`)) %>%
-  adorn_totals("row") 
+            `Total Population` = sum(total_pop)) %>%
+  arrange(desc(`Pop under 80 AMI`)) 
 
 datatable(temp, caption = "New Mexico, Sources: ACS 2019 and HUD CHAS")%>%
   formatCurrency('Pop under 80 AMI',currency = "", interval = 3, mark = ",") %>%
   formatCurrency('Medicaid',currency = "", interval = 3, mark = ",") %>%
   formatCurrency('SNAP',currency = "", interval = 3, mark = ",") %>%
-  formatCurrency('Total',currency = "", interval = 3, mark = ",") 
+  formatCurrency('Total Population',currency = "", interval = 3, mark = ",") 
 
 
 
@@ -351,14 +354,14 @@ map <- leaflet() %>%
     fillOpacity=0.7,
     color=~pal4(medicaid_pop),
     popup=paste("Tract: ", nm_blocks$GEOID, "<br>", 
-                "Number of HHs Receiving SNAP: ", nm_blocks$medicaid_pop)
+                "Number of HHs Receiving Medicaid: ", nm_blocks$medicaid_pop)
   ) %>%
   
   addLegend("bottomleft",
             group="Medicaid",
             pal = pal4,
             values = nm_blocks$medicaid_pop,
-            title="Number of HHs Receiving SNAP:"
+            title="Number of HHs Receiving Medicaid:"
   ) %>%
    
   addLayersControl(
@@ -367,7 +370,7 @@ map <- leaflet() %>%
   )
 
 map %>%
-  hideGroup("80% AMI Percent") %>% hideGroup("SNAP") %>% hideGroup("80% AMI Count") %>% hideGroup("Medicaid")
+ hideGroup("SNAP") %>% hideGroup("80% AMI") %>% hideGroup("Medicaid")
 
 ```
 
@@ -377,9 +380,9 @@ map %>%
 
 
 
-## Public Housing
+## Low Income Housing
 
-Take each affordable rental property listed on the [MFA Housing New Mexico](https://housingnm.org/find-housing/rentals/affordable) website. We'll calculate how many LMI populace is within various buffered boundaries of each point. 
+To estimate the total number of New Mexicans low income housing, we first require a list of eligible propeorties. We take each affordable rental property listed on the [MFA Housing New Mexico](https://housingnm.org/find-housing/rentals/affordable) website. After geocoding each point, we have several options for determining the population concentration around each point. A commoon technique in transportation modeling is applying an isocrhone, or a travel time map. In our case, we want to see how many eligible population of SNAP, Medicaid and 80% AMI households are within a 15 and 30 minute driving radius around each point. 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 # nm_data <- read_excel("nm_public_housing.xlsx")
@@ -433,27 +436,46 @@ nm_pub_in_util <- nm_public_housing %>%
   filter(!is.na(util_name))
 
 
-  map %>%
+houses_in_utilies <- nm_pub_in_util$Name
 
-  addMarkers(data=nm_public_housing,
-                   group="Public Housing",
-                #   color="black",
-                #   radius=2,
-                   popup=paste("Name: ", nm_public_housing$Name)) %>%
+iso_15 <- nm_public_housing_isos_15 %>%
+  filter(id %in% houses_in_utilies)
+
+iso_30 <- nm_public_housing_isos_30 %>%
+  filter(id %in% houses_in_utilies)
+
+
+map %>%
+  # addMarkers(data=nm_public_housing,
+  #                  group="Public Housing",
+  #               #   color="black",
+  #               #   radius=2,
+  #                  popup=paste("Name: ", nm_public_housing$Name)) %>%
   addMarkers(data = nm_pub_in_util,
-             group="Public Housing in Utility Zones",
+             group="Public Housing",
            #  color="red",
             popup=paste("Name: ", nm_pub_in_util$util_name)) %>%
-  addPolygons(data =nm_public_housing_isos_15 ) %>%
+  addPolygons(data =iso_15,
+              group = "15 Minute Driving",
+              fillOpacity = 0.2,
+              color = "orange") %>%
+    addPolygons(data =iso_30,
+              group = "30 Minute Driving",
+              fillOpacity = 0.2,
+              color = "darkgreen") %>%
 
   addLayersControl(
-    overlayGroups=c("80% AMI Percent", "80% AMI Count", "Utility Zone", "SNAP", "Medicaid", "Public Housing", "Public Housing in Utility Zones"),  # Update the order for consistency
+    overlayGroups=c("80% AMI", "Utility Zones", "SNAP", "Medicaid", "Public Housing", "15 Minute Driving", "30 Minute Driving"),  # Update the order for consistency
     options = layersControlOptions(collapsed = FALSE)
   ) %>%
-  hideGroup("80% AMI Percent") %>% hideGroup("SNAP") %>% hideGroup("80% AMI Count") %>% hideGroup("Medicaid") %>% hideGroup("Public Housing in Utility Zones")
+  hideGroup("80% AMI Percent") %>% hideGroup("SNAP") %>% hideGroup("80% AMI") %>% hideGroup("Medicaid") 
 
 
 ```
+
+
+
+
 
 
 
@@ -507,13 +529,6 @@ datatable(total_df, caption = "New Mexico Distance from Public Housing and Selec
 
 
 ```
-
-
-
-
-
-
-
 
 
 
