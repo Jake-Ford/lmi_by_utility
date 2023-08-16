@@ -647,46 +647,8 @@ New York LMI Qualification methods are detailed in the [policy matrix](https://c
   * **LMI - 80% of AMI**
   * [Pre-screened areas](https://www.nyserda.ny.gov/ny/ahp-empower/geo-eligible-income-tool)
   * DAC interim [disadvantaged areas](https://data.ny.gov/Energy-Environment/Interim-Disadvantaged-Communities-DAC-2020/t6wd-tdrv)
-
-```{r message=FALSE, warning=FALSE, include=FALSE}
-
-state_list <- c("IL", "NM", "MA", "NY", "NJ", "MN")
-
-hifld_df <- st_read("utility_zones/HIFLD/Electric_Retail_Service_Territories (1)/Electric_Retail_Service_Territories.shp") 
-
-temp_util <- hifld_df %>%
-  filter(ID %in% c(3249, 13511, 16183, 14154)) %>%
-  mutate(new_name = case_when(
-    ID == 3249 ~ "Central Hudson",
-    ID == 13511 ~ "NYSEG",
-    ID == 16183 ~ "Rochester Gas & Electric",
-    ID == 14154 ~ "Orange & Rockland"
-  ))
-
-
-# Read the spatial data
-nat_grid <- st_read("/Users/jacobford/Desktop/nat_grid_zone_e.shp")
-
-# Remove the Z dimension
-nat_grid_xy <- st_zm(nat_grid, drop = TRUE)
-nat_grid_xy <- st_transform(nat_grid_xy, st_crs(get_tracts))
-
-
-census_api_key('ba3d95cae3658f3145daf7f66119ed58a52aaca3')
-
-get_tracts <- get_acs(
-  geography="tract", 
-  state=state_list,
-  variables=c("Median Income" = "S1901_C01_012E"),
-  year=2017, 
-  geometry=TRUE) %>%
-  mutate(MedInc = estimate) %>%
-  select(geoid=GEOID, geometry)
-
-
-```
-
-
+  
+  
 
 
 
@@ -714,8 +676,7 @@ add_geo <- st_as_sf(add_geo)
 add_geo <- add_geo %>%
   filter(State_Name=="New York")
 
-temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
-  st_make_valid()
+
 ```
 
 
@@ -736,17 +697,17 @@ Solstice operates in the following three utility zones in New York:
 library(sf)
 library(leaflet)
 
-# Read the spatial data
-nat_grid <- st_read("/Users/jacobford/Desktop/nat_grid_zone_e.shp")
+temp_util <- st_read("ny_utils.shp") %>%
+  filter(grepl("NGRID|NYSEG|CHGE|RGE|ORU", comp_short))
 
-# Remove the Z dimension
-nat_grid_xy <- st_zm(nat_grid, drop = TRUE)
+
+temp_util <- st_zm(temp_util, drop = TRUE)
 
 # Define your color palette and values
 
 pal5 <- colorFactor(
   palette="viridis",
-  domain=temp_util$new_name
+  domain=temp_util$comp_full
 )
 # Create the leaflet map
 leaflet() %>%
@@ -754,25 +715,15 @@ leaflet() %>%
   addPolygons(data = temp_util,
               group = "Utility Zones",
               stroke = TRUE,
-              color = ~pal5(temp_util$new_name),
+              color = ~pal5(temp_util$comp_full),
               dashArray = "3",
               fillOpacity = 0.5,
-              popup = paste("Utility Zone: ", temp_util$new_name)) %>%
-  addPolygons(data = nat_grid_xy, 
-              fillColor = "blue", 
-              color = "black", 
-              fillOpacity = 0.4,
-              group = "NatGrid Zone E") %>%
-  
-   addLegend(
-    position = "bottomright",   # Position of the legend on the map
-    colors = "blue",             # Color(s) to show in the legend
-    labels = "NatGrid Zone E",   # Label for the legend
-    opacity = 0.4               # Fill opacity for the legend color
-  ) %>%
+              popup = paste("Utility Zone: ", temp_util$comp_full)) %>%
+
+
   addLegend(position = "bottomright",
             pal = pal5,
-            values = temp_util$new_name,
+            values = temp_util$comp_full,
             title = "Solstice NY Utilities")
 
 ```
@@ -808,10 +759,10 @@ ny_blocks <- get_acs(
                  #         estimate[variable=="medicaid_6"] ,
             total_pop = estimate[variable=="Total_Pop"])
 
-total_nm_tracts <- cbind(add_geo, ny_blocks)
+total_ny_tracts <- cbind(add_geo, ny_blocks)
 
 
-ny_blocks
+
 ```
 
 
@@ -820,12 +771,12 @@ ny_blocks
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 
-temp <- total_nm_tracts %>% 
+temp <- total_ny_tracts %>% 
   st_point_on_surface() %>%
   st_make_valid() %>%
-  st_join(temp_util %>% select(NAME)) %>%
+  st_join(temp_util %>% select(comp_full)) %>%
   st_drop_geometry() %>%
-  group_by(Name = NAME) %>%
+  group_by(Name = comp_full) %>%
   filter(!is.na(Name)) %>%
   summarize(`Pop under 80 AMI` = sum(AMI_80),
          #   `Medicaid` = sum(medicaid_pop),
@@ -850,82 +801,82 @@ datatable(temp, caption = "New York, Sources: ACS 2019 and HUD CHAS")%>%
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=10, fig.width=8}
 
-ny_df <- add_geo %>%
-  filter(State_Name == "New York") 
-
-pal <- colorNumeric(
-  palette = "Reds",
- # reverse=TRUE,
-  domain = ny_df$AMI_80)
-
-pal2 <- colorNumeric(
-  palette = "Purples",
- # reverse=TRUE,
-  domain = ny_df$AMI_80_Pct)
-
-
-
- 
-
-
-
-map <- leaflet() %>%
-  addProviderTiles("CartoDB.Positron") %>%
-  addPolygons(data=temp_util,
-              group="Utility Zones",
-              stroke=TRUE,
-              color="black",
-              dashArray="3",
-              fillOpacity=0,
-              popup=paste("Utility Zone: ", temp_util$new_name)
-  ) %>%
-  
-  addPolygons(
-    data = ny_df,
-    group="80% AMI",  # This should be consistent with the group name in the addLegend function
-    stroke=FALSE,
-    smoothFactor=0.2,
-    fillOpacity=0.7,
-    color=~pal(AMI_80),
-    popup=paste("Tract: ", ny_df$geoid, "<br>", 
-                "HHs at 80% AMI: ", ny_df$AMI_80)
-  ) %>%
-
-  addLegend("bottomleft",
-            group="80% AMI",  # This should be consistent with the group name in the addPolygons function
-            pal = pal,
-            values = ny_df$AMI_80,
-            title="Number of HHs at 80% AMI"
-  ) %>%
-
-  
-
-
-   
-  addLayersControl(
-    overlayGroups=c( "80% AMI", "Utility Zones"),  # Update the order for consistency
-    options = layersControlOptions(collapsed = FALSE)
-  ) %>%
-    addPolygons(data = nat_grid_xy, 
-              fillColor = "blue", 
-              color = "black", 
-              fillOpacity = 0.4,
-              group = "NatGrid Zone E") %>%
-  
-   addLegend(
-    position = "bottomright",   # Position of the legend on the map
-    colors = "blue",             # Color(s) to show in the legend
-    labels = "NatGrid Zone E",   # Label for the legend
-    opacity = 0.4               # Fill opacity for the legend color
-  ) %>%
-  
-    addLayersControl(
-    overlayGroups=c("80% AMI", "Utility Zones", "NatGrid Zone E"),  # Update the order for consistency
-    options = layersControlOptions(collapsed = FALSE)
-  )
-
-map %>%
- hideGroup("80% AMI") 
+# ny_df <- add_geo %>%
+#   filter(State_Name == "New York") 
+# 
+# pal <- colorNumeric(
+#   palette = "Reds",
+#  # reverse=TRUE,
+#   domain = ny_df$AMI_80)
+# 
+# pal2 <- colorNumeric(
+#   palette = "Purples",
+#  # reverse=TRUE,
+#   domain = ny_df$AMI_80_Pct)
+# 
+# 
+# 
+#  
+# 
+# 
+# 
+# map <- leaflet() %>%
+#   addProviderTiles("CartoDB.Positron") %>%
+#   addPolygons(data=temp_util,
+#               group="Utility Zones",
+#               stroke=TRUE,
+#               color="black",
+#               dashArray="3",
+#               fillOpacity=0,
+#               popup=paste("Utility Zone: ", temp_util$new_name)
+#   ) %>%
+#   
+#   addPolygons(
+#     data = ny_df,
+#     group="80% AMI",  # This should be consistent with the group name in the addLegend function
+#     stroke=FALSE,
+#     smoothFactor=0.2,
+#     fillOpacity=0.7,
+#     color=~pal(AMI_80),
+#     popup=paste("Tract: ", ny_df$geoid, "<br>", 
+#                 "HHs at 80% AMI: ", ny_df$AMI_80)
+#   ) %>%
+# 
+#   addLegend("bottomleft",
+#             group="80% AMI",  # This should be consistent with the group name in the addPolygons function
+#             pal = pal,
+#             values = ny_df$AMI_80,
+#             title="Number of HHs at 80% AMI"
+#   ) %>%
+# 
+#   
+# 
+# 
+#    
+#   addLayersControl(
+#     overlayGroups=c( "80% AMI", "Utility Zones"),  # Update the order for consistency
+#     options = layersControlOptions(collapsed = FALSE)
+#   ) %>%
+#     addPolygons(data = nat_grid_xy, 
+#               fillColor = "blue", 
+#               color = "black", 
+#               fillOpacity = 0.4,
+#               group = "NatGrid Zone E") %>%
+#   
+#    addLegend(
+#     position = "bottomright",   # Position of the legend on the map
+#     colors = "blue",             # Color(s) to show in the legend
+#     labels = "NatGrid Zone E",   # Label for the legend
+#     opacity = 0.4               # Fill opacity for the legend color
+#   ) %>%
+#   
+#     addLayersControl(
+#     overlayGroups=c("80% AMI", "Utility Zones", "NatGrid Zone E"),  # Update the order for consistency
+#     options = layersControlOptions(collapsed = FALSE)
+#   )
+# 
+# map %>%
+#  hideGroup("80% AMI") 
 
 ```
 
