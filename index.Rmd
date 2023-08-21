@@ -11,7 +11,7 @@ output:
 
 # Overview
 
-This document quantifies the number of LMI households by utility zone in select states. We use state specific LMI definitions and overlay utility zones to estimate the LMI population covered. The goal of this work is to provide data driven insights when new markets are considered with LMI requirements. 
+This document quantifies the number of income and geographic qualified population in each state Solstice operates in. Additionally, results by utility zones is provided. We use state specific LMI and geographic qualification definitions and overlay utility zones to estimate the population covered. The goal of this work is to provide data driven insights when new markets are considered with LMI requirements. 
 
 Utility coverage is provided by either the [HIFLD](https://hifld-geoplatform.opendata.arcgis.com/datasets/f4cd55044b924fed9bc8b64022966097/explore?location=41.065293%2C-80.583661%2C6.90) national level electric retail service territories or, preferably, state sources that are more granular. Note HIFLD often provides overlapping areas (ex: a municipal boundary and an utility provider) so data should primarily be sourced from state sources or be validated from HIFLD. 
 
@@ -39,9 +39,11 @@ library(ggmap)
 source('helper_functions.R')
 library(RColorBrewer)
 
+library(tidyr)
 options(scipen = 100)
 
 ```
+
 
 
 # New Mexico
@@ -73,9 +75,9 @@ get_tracts <- get_acs(
 
 ```
 
+## Geoqualification
 
-
-
+In New Mexico, there is no geographic qualification methods, so we only focus on estimating the potential LMI population by various methods used in the state program. 
 
 
 
@@ -105,7 +107,26 @@ temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
   st_make_valid()
 ```
 
+## LMI Qualifications
 
+
+New Mexico LMI Qualification methods are detailed in the [policy matrix](https://coda.io/d/Solstice-Policy_dBUL-zOSfnb/Program-Matrix_suVJB#Program-Matrix_tuLIr/r11&view=full), but in summary include:
+
+
+  * Medicaid
+  * SNAP
+  * LIHEAP
+  * First-time home owner programs
+  * Affordable housing facilities
+    - HUD data: https://resources.hud.gov/#layers-menu
+    - state specific to supplement: https://housingnm.org/find-housing/rentals/affordable
+  * Low-income housing
+  * State and federal income tax credit
+  * Entire multi-family housing project may qualify if the entire load can be proved to be low-income subscribers, with consent of all tenants of record.
+  * **LMI - 80% of AMI**
+  
+
+Census data is available for the population receiving Medicaid, SNAP, and number of households at or below 80% AMI. The following analysis quantifies the total eligible LMI population by each of these three categories.
 
 Solstice operates in the following three utility zones in New Mexico:
 
@@ -134,32 +155,10 @@ leaflet() %>%
             values=temp_util$new_name,
             title="Solstice NM Utilities")
 ```
-
-
-## LMI Qualifications
-
-New Mexico LMI Qualification methods are detailed in the [policy matrix](https://coda.io/d/Solstice-Policy_dBUL-zOSfnb/Program-Matrix_suVJB#Program-Matrix_tuLIr/r11&view=full), but in summary include:
-
-
-  * Medicaid
-  * SNAP
-  * LIHEAP
-  * First-time home owner programs
-  * Affordable housing facilities
-    - HUD data: https://resources.hud.gov/#layers-menu
-    - state specific to supplement: https://housingnm.org/find-housing/rentals/affordable
-  * Low-income housing
-  * State and federal income tax credit
-  * Entire multi-family housing project may qualify if the entire load can be proved to be low-income subscribers, with consent of all tenants of record.
-  * **LMI - 80% of AMI**
   
 
-Census data is available for the population receiving Medicaid, SNAP, and number of households at or below 80% AMI. The following analysis quantifies the total eligible LMI population by each of these three categories.
 
-  
-
-  
-```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE, include=FALSE}
 
   # * Medicaid
   #   - total count of population with Medicaid- C27007_004 + C27007_007 + C27007_010 + C27007_014 + C27007_017 + C27007_020
@@ -183,9 +182,7 @@ Census data is available for the population receiving Medicaid, SNAP, and number
   # 
   # LMI - 80% of AMI from HUD..
 # acs_vars <- load_variables(2019, "acs5")
-```
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
 nm_blocks <- get_acs(
   geography="tract", 
   state="NM",
@@ -203,7 +200,7 @@ nm_blocks <- get_acs(
   year=2019, 
   geometry=TRUE) %>%
   group_by(GEOID) %>%
-  summarize(snap_hh = estimate[variable=="snap_pop"],
+  summarize(snap_hh = estimate[variable=="snap_hh"],
             medicaid_pop =estimate[variable=="medicaid_1"] + 
                           estimate[variable=="medicaid_2"] +
                           estimate[variable=="medicaid_3"] +
@@ -219,7 +216,7 @@ nm_blocks
 ```
 
 
-
+The table below shows total population by LMI qualification method by utility area coverage. Note, these LMI groups are not mutually exclusive, rather are snap shots of the individual method's population. 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -233,14 +230,14 @@ temp <- total_nm_tracts %>%
   filter(!is.na(Name)) %>%
   summarize(`Pop under 80 AMI` = sum(AMI_80),
             `Medicaid` = sum(medicaid_pop),
-            `SNAP` = sum(snap_hh),
+            `SNAP HH` = sum(snap_hh),
             `Total Population` = sum(total_pop)) %>%
   arrange(desc(`Pop under 80 AMI`)) 
 
 datatable(temp, caption = "New Mexico, Sources: ACS 2019 and HUD CHAS")%>%
   formatCurrency('Pop under 80 AMI',currency = "", interval = 3, mark = ",") %>%
   formatCurrency('Medicaid',currency = "", interval = 3, mark = ",") %>%
-  formatCurrency('SNAP',currency = "", interval = 3, mark = ",") %>%
+  formatCurrency('SNAP HH',currency = "", interval = 3, mark = ",") %>%
   formatCurrency('Total Population',currency = "", interval = 3, mark = ",") 
 
 
@@ -250,6 +247,7 @@ datatable(temp, caption = "New Mexico, Sources: ACS 2019 and HUD CHAS")%>%
 ```
 
 
+The map shows the census tracts loaded with the LMI qualification methods by utility zone coverage. 
 
 
 
@@ -383,12 +381,12 @@ map %>%
 
 
 
-## Low Income Housing
+### Low Income Housing
 
-To estimate the total number of New Mexicans low income housing, we first require a list of eligible propeorties. We take each affordable rental property listed on the [MFA Housing New Mexico](https://housingnm.org/find-housing/rentals/affordable) website. After geocoding each point, we have several options for determining the population concentration around each point. A commoon technique in transportation modeling is applying an isocrhone, or a travel time map. In our case, we want to see how many eligible population of SNAP, Medicaid and 80% AMI households are within a 15 and 30 minute driving radius around each point. 
+To estimate the total number of New Mexicans residing in low income housing, we first require a list of eligible properties. We take each affordable rental property listed on the [MFA Housing New Mexico](https://housingnm.org/find-housing/rentals/affordable) website. After geocoding each point, we have several options for determining the population concentration around each point. A common technique in transportation modeling is applying an isocrhone, or a travel time map. In our case, we want to see how many eligible population of SNAP, Medicaid and 80% AMI households are within a 15 and 30 minute driving radius around each point. 
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-# nm_data <- read_excel("nm_public_housing.xlsx")
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# nm_data <- read_excel("data/nm/nm_public_housing.xlsx")
 # 
 # 
 # 
@@ -415,20 +413,22 @@ To estimate the total number of New Mexicans low income housing, we first requir
 
 
 
-nm_public_housing <- st_read("nm_public_housing.shp")
+nm_public_housing <- st_read("data/nm/nm_public_housing.shp")
 
 # nm_public_housing_isos <- nm_public_housing %>%
 #   mb_isochrone(time = 30, profile = "driving", id_column = "Name",
 #                access_token = "blahblahblah"
 
-nm_public_housing_isos_15 <- st_read("nm_public_housing_isos_15.shp") 
+nm_public_housing_isos_15 <- st_read("isochrones/nm_public_housing_isos_15.shp") 
 nm_public_housing_isos_15 <- st_transform(nm_public_housing_isos_15, st_crs(nm_public_housing))
 
-nm_public_housing_isos_30 <- st_read("nm_public_housing_isos_30.shp")
+nm_public_housing_isos_30 <- st_read("isochrones/nm_public_housing_isos_30.shp")
 nm_public_housing_isos_30 <- st_transform(nm_public_housing_isos_30, st_crs(nm_public_housing))
 
 
+```
 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 library(leaflet.extras)
 
@@ -482,7 +482,7 @@ map %>%
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
-library(sf)
+
 
 # Assuming 'snap' column is present in total_nm_tracts
 # Check validity of isochrones
@@ -513,6 +513,7 @@ intersecting_tracts$proportion_coverage <- intersecting_tracts$covered_area / to
 intersecting_tracts$proportion_snap_coverage <- intersecting_tracts$proportion_coverage * intersecting_tracts$snap_hh
 intersecting_tracts$proportion_medicaid_pop <- intersecting_tracts$proportion_coverage * intersecting_tracts$medicaid_pop
 intersecting_tracts$proportion_80ami_coverage <- intersecting_tracts$proportion_coverage * intersecting_tracts$AMI_80
+intersecting_tracts$proportion_total_pop <- intersecting_tracts$proportion_coverage * intersecting_tracts$total_pop
 
 
 temp_15 <- intersecting_tracts %>%
@@ -521,7 +522,8 @@ temp_15 <- intersecting_tracts %>%
   summarize(total_snap = max(snap_hh), 
             total_medicaid = max(medicaid_pop),
             total_80ami = max(AMI_80),
-            covered_area = sum(proportion_coverage)) %>%
+            covered_area = sum(proportion_coverage),
+            total_pop = max(total_pop)) %>%
   mutate(covered_prop = 
             case_when(
                 as.numeric(covered_area) >= 100 ~ 1,
@@ -533,13 +535,15 @@ temp_15 <- intersecting_tracts %>%
     proportion_snap = covered_prop * total_snap/100,
     proportion_medicaid = covered_prop * total_medicaid/100,
     proportion_80ami = covered_prop * total_80ami/100,
+    proportion_total_pop = covered_prop * total_pop/100,
     isochrone = "15 Minute"
   ) %>%
   group_by(isochrone) %>%
   summarize(SNAP = sum(proportion_snap),
             
             Medicaid = sum(proportion_medicaid),
-            LMI = sum(proportion_80ami))
+            LMI = sum(proportion_80ami),
+            Total_Pop = sum(proportion_total_pop))
 
 
 
@@ -555,7 +559,6 @@ temp_15
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
-library(sf)
 
 # Assuming 'snap' column is present in total_nm_tracts
 # Check validity of isochrones
@@ -586,6 +589,7 @@ intersecting_tracts$proportion_coverage <- intersecting_tracts$covered_area / to
 intersecting_tracts$proportion_snap_coverage <- intersecting_tracts$proportion_coverage * intersecting_tracts$snap_hh
 intersecting_tracts$proportion_medicaid_pop <- intersecting_tracts$proportion_coverage * intersecting_tracts$medicaid_pop
 intersecting_tracts$proportion_80ami_coverage <- intersecting_tracts$proportion_coverage * intersecting_tracts$AMI_80
+intersecting_tracts$proportion_total_pop <- intersecting_tracts$proportion_coverage * intersecting_tracts$total_pop
 
 
 temp_30 <- intersecting_tracts %>%
@@ -594,7 +598,8 @@ temp_30 <- intersecting_tracts %>%
   summarize(total_snap = max(snap_hh), 
             total_medicaid = max(medicaid_pop),
             total_80ami = max(AMI_80),
-            covered_area = sum(proportion_coverage)) %>%
+            covered_area = sum(proportion_coverage),
+            total_pop = max(total_pop)) %>%
   mutate(covered_prop = 
             case_when(
                 as.numeric(covered_area) >= 100 ~ 1,
@@ -606,13 +611,15 @@ temp_30 <- intersecting_tracts %>%
     proportion_snap = covered_prop * total_snap/100,
     proportion_medicaid = covered_prop * total_medicaid/100,
     proportion_80ami = covered_prop * total_80ami/100,
+    proportion_total_pop = covered_prop * total_pop/100,
     isochrone = "30 Minute"
   ) %>%
   group_by(isochrone) %>%
   summarize(SNAP = sum(proportion_snap),
             
             Medicaid = sum(proportion_medicaid),
-            LMI = sum(proportion_80ami))
+            LMI = sum(proportion_80ami),
+            Total_Pop = sum(proportion_total_pop))
 
 
 
@@ -629,9 +636,11 @@ temp <- rbind(temp_15, temp_30)
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 datatable(temp, caption = "New Mexico Distance from Public Housing and Selected Characteristics")%>%
-  formatCurrency('SNAP',currency = "", interval = 3, mark = ",") %>%
+  formatCurrency('LMI',currency = "", interval = 3, mark = ",") %>%
   formatCurrency('Medicaid',currency = "", interval = 3, mark = ",") %>%
-  formatCurrency('LMI',currency = "", interval = 3, mark = ",") 
+  formatCurrency('SNAP',currency = "", interval = 3, mark = ",")  %>%
+  formatCurrency('Total_Pop', currency="", interval = 3, mark = ",")
+
 
 
 ```
@@ -640,26 +649,10 @@ datatable(temp, caption = "New Mexico Distance from Public Housing and Selected 
 
 # New York
 
-## LMI Qualifications
-
-
-New York LMI Qualification methods are detailed in the [policy matrix](https://coda.io/d/Solstice-Policy_dBUL-zOSfnb/Program-Matrix_suVJB#Program-Matrix_tuLIr/r11&view=full), but in summary include:
-
-  
-
-  * **LMI - 80% of AMI**
-  * [Pre-screened areas](https://www.nyserda.ny.gov/ny/ahp-empower/geo-eligible-income-tool)
-  * DAC interim [disadvantaged areas](https://data.ny.gov/Energy-Environment/Interim-Disadvantaged-Communities-DAC-2020/t6wd-tdrv)
-  
-  
-
-
-
-
-
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
+#  * NYSERDA [Supported Solar Projects](https://www.nyserda.ny.gov/All-Programs/NY-Sun/Solar-Data-Maps/NYSERDA-Supported-Solar-Projects)
 
 chas_df <- load_chas() %>%
     mutate(State_Name = case_when(
@@ -681,14 +674,28 @@ add_geo <- st_as_sf(add_geo)
 add_geo <- add_geo %>%
   filter(State_Name=="New York")
 
+temp_util <- st_read("data/NY/ny_utils.shp") %>%
+  filter(grepl("NGRID|NYSEG|CHGE|RGE|ORU", comp_short))
+
+
+dac_bgs <- st_read("data/NY/Interim Disadvantaged Communities (DAC)_ 2020/geo_export_ae5e9c30-45bc-4888-87dd-681a41d761d8.shp")
+
+lift_df <- read.csv("data/groundswell_lift/cs-projects-2023-08-18.csv") 
+
 
 ```
 
 
 
+## Geoqualification
+
+Residence in a DAC or EmPower pre-screened area. 
+
+  * [Pre-screened areas](https://www.nyserda.ny.gov/ny/ahp-empower/geo-eligible-income-tool)
+  * DAC interim [disadvantaged areas](https://data.ny.gov/Energy-Environment/Interim-Disadvantaged-Communities-DAC-2020/t6wd-tdrv)
 
 
-Solstice operates in the following three utility zones in New York:
+We consider the following five utility zones in New York:
 
   * National Grid
   * NYSEG
@@ -698,17 +705,15 @@ Solstice operates in the following three utility zones in New York:
 
 
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-library(sf)
-library(leaflet)
 
-temp_util <- st_read("state_util/ny_utils.shp") %>%
-  filter(grepl("NGRID|NYSEG|CHGE|RGE|ORU", comp_short))
+### DAC BGs
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 
 temp_util <- st_zm(temp_util, drop = TRUE)
 
-# Define your color palette and values
 
 pal5 <- colorFactor(
   palette="viridis",
@@ -729,92 +734,21 @@ leaflet() %>%
   addLegend(position = "bottomright",
             pal = pal5,
             values = temp_util$comp_full,
-            title = "Solstice NY Utilities")
+            title = "Solstice NY Utilities") %>%
+  addPolygons(data = dac_bgs,
+              group="DAC") %>%
+  addLayersControl(
+    overlayGroups=c( "Utility Zones", "DAC"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
 
 ```
-
-  
-
-
-```{r message=FALSE, warning=FALSE, include=FALSE}
-ny_blocks <- get_acs(
-  geography="block group", 
-  state="NY",
-  variables=c(#"snap_hh" = "B22001_002"
-              # "snap_pop" = "B19058_002",
-              # "medicaid_1" = "C27007_004",
-              # "medicaid_2" = "C27007_007",
-              # "medicaid_3" = "C27007_010",
-              # "medicaid_4" = "C27007_014",
-              # "medicaid_5" = "C27007_017",
-              # "medicaid_6" = "C27007_020",
-               "Total_Pop" = "B01001_001"
-              
-              ),
-  year=2018, 
-  geometry=TRUE) %>%
-  group_by(GEOID) %>%
-  summarize(
-            #snap_hh = estimate[variable=="snap_pop"],
-            #medicaid_pop =estimate[variable=="medicaid_1"] + 
-             #             estimate[variable=="medicaid_2"] +
-              #            estimate[variable=="medicaid_3"] +
-               #           estimate[variable=="medicaid_4"] +
-                #          estimate[variable=="medicaid_5"] +
-                 #         estimate[variable=="medicaid_6"] ,
-            total_pop = estimate[variable=="Total_Pop"])
-
-
-ny_tracts <- get_acs(
-  geography="Tract", 
-  state="NY",
-  variables=c(#"snap_hh" = "B22001_002"
-              # "snap_pop" = "B19058_002",
-              # "medicaid_1" = "C27007_004",
-              # "medicaid_2" = "C27007_007",
-              # "medicaid_3" = "C27007_010",
-              # "medicaid_4" = "C27007_014",
-              # "medicaid_5" = "C27007_017",
-              # "medicaid_6" = "C27007_020",
-               "Total_Pop" = "B01001_001"
-              
-              ),
-  year=2019, 
-  geometry=TRUE) %>%
-  group_by(GEOID) %>%
-  summarize(
-            #snap_hh = estimate[variable=="snap_pop"],
-            #medicaid_pop =estimate[variable=="medicaid_1"] + 
-             #             estimate[variable=="medicaid_2"] +
-              #            estimate[variable=="medicaid_3"] +
-               #           estimate[variable=="medicaid_4"] +
-                #          estimate[variable=="medicaid_5"] +
-                 #         estimate[variable=="medicaid_6"] ,
-            total_pop = estimate[variable=="Total_Pop"])
-
-
-total_ny_tracts <- cbind(add_geo, ny_tracts)
-
-
-
-```
-
-
-
-
-
-
-
-
-## DAC BGs
-
-
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-dac_bgs <- st_read("state_util/Interim Disadvantaged Communities (DAC)_ 2020/geo_export_ae5e9c30-45bc-4888-87dd-681a41d761d8.shp")
 
-dac_bgs <- st_transform(dac_bgs, st_crs(total_ny_tracts)) %>% st_make_valid()
+
+dac_bgs <- st_transform(dac_bgs, st_crs(total_nm_tracts)) %>% st_make_valid()
 
 temp <- dac_bgs %>% 
   st_point_on_surface() %>%
@@ -838,11 +772,214 @@ datatable(temp, caption = "Interim Disadvantaged Communities (DAC) Population by
 
 
 
+## LMI Qualifications
+
+
+New York LMI Qualification methods are detailed in the [policy matrix](https://coda.io/d/Solstice-Policy_dBUL-zOSfnb/Program-Matrix_suVJB#Program-Matrix_tuLIr/r11&view=full), but in summary include:
+
+  * **LMI - 80% of AMI**
+  * Award letters for EmPower, HEAP, SNAP, TANF, SSSI; HEAP or other assistance on utility bill
+  
+  
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+
+
+ny_tracts <- get_acs(
+  geography="tract", 
+  state="NY",
+  variables=c("Total_Pop" = "B01001_001","snap_hh" = "B22001_002","snap_pop" = "B19058_002"
+              
+              ),
+  year=2019, 
+  geometry=TRUE) %>%
+  group_by(GEOID) %>%
+  summarize(total_pop = estimate[variable=="Total_Pop"],
+            snap_hh = estimate[variable=="snap_hh"],
+            snap_pop = estimate[variable=="snap_pop"])
+
+
+total_ny_tracts <- cbind(add_geo, ny_tracts)
+
+
+
+```
+
+
+The table below shows total population by LMI qualification method by utility area coverage. Note, these LMI groups are not mutually exclusive, rather are snap shots of the individual method's population. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+temp <- total_ny_tracts %>% 
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>% select(comp_short)) %>%
+  st_drop_geometry() %>%
+  group_by(Name = comp_short) %>%
+  filter(!is.na(Name)) %>%
+  summarize(`Pop under 80 AMI` = sum(AMI_80),
+             `SNAP HH` = sum(snap_hh),
+            `Total Population` = sum(total_pop)) %>%
+  arrange(desc(`Pop under 80 AMI`)) 
+
+datatable(temp, caption = "New York, Sources: ACS 2019 and HUD CHAS")%>%
+  formatCurrency('Pop under 80 AMI',currency = "", interval = 3, mark = ",") %>%
+  formatCurrency('SNAP HH',currency = "", interval = 3, mark = ",") %>%
+  formatCurrency('Total Population',currency = "", interval = 3, mark = ",") 
 
 
 
 
 
+```
+
+The map shows the census tracts loaded with the LMI qualification methods by utility zone coverage. 
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=10, fig.width=8}
+
+ny_df <- add_geo %>%
+  filter(State_Name == "New York") 
+
+pal <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = ny_df$AMI_80)
+
+pal2 <- colorNumeric(
+  palette = "Purples",
+ # reverse=TRUE,
+  domain = ny_df$AMI_80_Pct)
+
+pal3 <- colorNumeric(
+  palette = "viridis",
+ # reverse=TRUE,
+  domain = total_ny_tracts$snap_hh)
+
+
+
+ 
+
+
+
+map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup=paste("Utility Zone: ", temp_util$comp_short)
+  ) %>%
+  
+  addPolygons(
+    data = ny_df,
+    group="80% AMI",  # This should be consistent with the group name in the addLegend function
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.85,
+    color=~pal(AMI_80),
+    popup=paste("Tract: ", ny_df$geoid, "<br>", 
+                "HHs at 80% AMI: ", ny_df$AMI_80)
+  ) %>%
+
+  addLegend("bottomleft",
+            group="80% AMI",  # This should be consistent with the group name in the addPolygons function
+            pal = pal,
+            values = ny_df$AMI_80,
+            title="Number of HHs at 80% AMI"
+  ) %>%
+  
+  # addPolygons(
+  #   data=nm_df,
+  #   group="80% AMI Percent",  # This should be consistent with the group name in the addLegend function
+  #   stroke=FALSE,
+  #   smoothFactor=0.2,
+  #   fillOpacity=0.7,
+  #   color=~pal2(AMI_80_Pct),
+  #   popup=paste("Tract: ", nm_df$geoid, "<br>", 
+  #               "Percent of HHs at 80% AMI: ", nm_df$AMI_80_Pct)
+  # ) %>%
+  # 
+  # addLegend("bottomleft",
+  #           group="80% AMI Percent",  # This should be consistent with the group name in the addPolygons function
+  #           pal = pal2,
+  #           values = nm_df$AMI_80_Pct,
+  #           title="Percent of HHs at 80% AMI"
+  # ) %>%
+  
+  addPolygons(
+    data=total_ny_tracts,
+    group="SNAP",
+    stroke=FALSE,
+    smoothFactor=0.2,
+    fillOpacity=0.7,
+    color=~pal3(snap_hh),
+    popup=paste("Tract: ", total_ny_tracts$GEOID, "<br>",
+                "Number of HHs Receiving SNAP: ", total_ny_tracts$snap_hh)
+  ) %>%
+
+  addLegend("bottomleft",
+            group="SNAP",
+            pal = pal3,
+            values = total_ny_tracts$snap_hh,
+            title="Number of HHs Receiving SNAP:"
+  ) %>%
+  
+
+
+  addLayersControl(
+    overlayGroups=c( "80% AMI", "Utility Zones", "SNAP"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+map %>%
+ hideGroup("SNAP") %>% hideGroup("80% AMI")
+
+```
+
+
+
+
+
+
+
+### LIFT Solar
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+library(mapview)
+
+lift_df <- separate(lift_df, GeoCode, into = c("long", "lat"), sep = ",")
+
+lift_df <- st_as_sf(lift_df, coords = c("long", "lat"), crs = st_crs(nm_blocks))
+
+lift_df %>%
+  filter(State=="New York") %>%
+  mapview()
+  
+
+
+
+```
+
+
+
+
+
+# California
+
+## Geoqualification
+
+
+
+## LMI Qualifications
 
 
 
