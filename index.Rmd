@@ -975,19 +975,7 @@ map %>%
 
 ### LIFT Solar
 
-```{r}
-leaflet() %>%
-    addProviderTiles("CartoDB.Positron") %>%
-    addCircleMarkers(data = ny_lift,
-                   group="Project Capacity",
-                   popup = ~paste("Program Name: ", Program.Name, "<br>",
-                                  "Developer/Owner: ", Project.Developer.or.Owner, "<br>", 
-                                  "Project Capacity: ", Project.Capacity.KW.AC, "<br>",
-                                  "LMI Savings: ", LMI.Customer.Savings.., "<br>",
-                                  "Potential LMI Subscribers: ", Potential...LMI.Subscribers),
-                   radius = ny_lift$Potential...LMI.Subscribers/15, 
-                   color = ~pal_cap(Project.Capacity.KW.AC))
-```
+
 
 
 
@@ -1153,11 +1141,79 @@ map %>%
 
 # California
 
+
+
+
+```{r}
+chas_df <- load_chas() %>%
+    mutate(State_Name = case_when(
+    state == 17 ~ "Illinois",
+    state == 25 ~ "Massachusetts",  
+    state == 27 ~ "Minnesota",  
+    state == 34 ~ "New Jersey",
+    state == 35 ~ "New Mexico",  
+    state == 36 ~ "New York",
+    state == 06 ~ "California",
+    TRUE ~ "Other"
+  ))
+
+
+
+add_geo <- merge(chas_df, get_tracts) 
+
+add_geo <- st_as_sf(add_geo)
+
+add_geo <- add_geo %>%
+  filter(State_Name=="California")
+
+```
+
+
+
+
 ## Geoqualification
 
+  * Underserved community - low-income community under Health and Safety Code Sec. 39713
+  * CalEnviroScreen disadvantaged community top quartile 
+  * California Native American tribe Public Resources Code Sec. 21073
 
 
 ## LMI Qualifications
+
+  * CARE Program
+  * FERA Program
+  * CalFresh Program
+  * SNAP
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
