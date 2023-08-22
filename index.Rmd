@@ -16,7 +16,7 @@ This document quantifies the number of income and geographic qualified populatio
 Utility coverage is provided by either the [HIFLD](https://hifld-geoplatform.opendata.arcgis.com/datasets/f4cd55044b924fed9bc8b64022966097/explore?location=41.065293%2C-80.583661%2C6.90) national level electric retail service territories or, preferably, state sources that are more granular. Note HIFLD often provides overlapping areas (ex: a municipal boundary and an utility provider) so data should primarily be sourced from state sources or be validated from HIFLD. 
 
 
-
+asdf
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 #Load packages we'll need throughout the entire document
