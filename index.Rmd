@@ -50,7 +50,7 @@ options(scipen = 100)
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
-state_list <- c("IL", "NM", "MA", "NY", "NJ", "MN", "NY")
+state_list <- c("IL", "MA", "MN", "NJ", "NM", "NY",  "CA")
 
 hifld_df <- st_read("utility_zones/HIFLD/Electric_Retail_Service_Territories (1)/Electric_Retail_Service_Territories.shp") 
 
@@ -212,7 +212,6 @@ nm_blocks <- get_acs(
 total_nm_tracts <- cbind(nm_geo, nm_blocks)
 
 
-nm_blocks
 ```
 
 
@@ -971,7 +970,7 @@ map %>%
 
 
 
-Groundswell manages hte LIFT solar dataset of over 450 LMI community solar projects across the country. Project capacity (KW AC) and number of potential LMI customers per project is shown from this dataset. Note, there are no LIFT projects in New Mexico. 
+Groundswell manages the LIFT solar dataset of over 450 LMI community solar projects across the country. Project capacity (KW AC) and number of potential LMI customers per project is shown from this dataset. Note, there are no LIFT projects in New Mexico. 
 
 
 ```{r echo=FALSE, fig.height=10, fig.width=8, message=FALSE, warning=FALSE}
@@ -1292,7 +1291,6 @@ env_df %>%
 
 
 
-Groundswell manages hte LIFT solar dataset of over 450 LMI community solar projects across the country. Project capacity (KW AC) and number of potential LMI customers per project is shown from this dataset. Note, there are no LIFT projects in New Mexico. 
 
 
 ```{r echo=FALSE, fig.height=10, fig.width=8, message=FALSE, warning=FALSE}
