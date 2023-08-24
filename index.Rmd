@@ -1674,7 +1674,7 @@ datatable(temp, caption = "Mercer County, Sources: ACS 2019 and HUD CHAS")%>%
 
 
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 
 ## Henry Demographic Table
 
@@ -1684,6 +1684,16 @@ temp <- henry_data %>%
   st_join(temp_util %>% select(NAME),st_nn, k = 1)  %>%
  # st_join(temp_util %>% select(NAME)) %>%
   st_drop_geometry()
+
+
+
+
+
+  
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 
 # Count the occurrences of each geoid in the result
 geoid_counts <- temp %>%
@@ -1711,13 +1721,6 @@ temp <- temp %>%
 
 
 
-
-
-  
-```
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
 datatable(temp, caption = "Henry County, Sources: ACS 2019 and HUD CHAS") %>%
   formatCurrency('Total HH', currency = "", mark = ",", interval = 3, digits = 0) %>%
   formatCurrency('Total Occupied HH', currency = "", mark = ",", interval = 3, digits = 0) %>%
