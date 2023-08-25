@@ -15,6 +15,26 @@ curl 'https://services7.arcgis.com/ZR2wjW0JGwgm9bhz/arcgis/rest/services/Federal
   -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36' \
   --compressed > /Users/jacobford/Desktop/pre_screened.json
 
+
+
+  curl 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/ElectricLoadServingEntities_IOU_POU_2021/FeatureServer/0/query?f=pbf&returnGeometry=true&spatialRel=esriSpatialRelIntersects&geometry=%7B%22xmin%22%3A-16280475.528514998%2C%22ymin%22%3A3757032.814274987%2C%22xmax%22%3A-15028131.257090997%2C%22ymax%22%3A5009377.085698988%2C%22spatialReference%22%3A%7B%22wkid%22%3A102100%2C%22latestWkid%22%3A3857%7D%7D&geometryType=esriGeometryEnvelope&inSR=102100&outFields=*&returnCentroid=false&returnExceededLimitFeatures=false&maxRecordCountFactor=3&outSR=102100&resultType=tile&quantizationParameters=%7B%22mode%22%3A%22view%22%2C%22originPosition%22%3A%22upperLeft%22%2C%22tolerance%22%3A2445.984905125002%2C%22extent%22%3A%7B%22xmin%22%3A-16280475.528514998%2C%22ymin%22%3A3757032.814274987%2C%22xmax%22%3A-15028131.257090997%2C%22ymax%22%3A5009377.085698988%2C%22spatialReference%22%3A%7B%22wkid%22%3A102100%2C%22latestWkid%22%3A3857%7D%7D%7D' \
+  -H 'authority: services3.arcgis.com' \
+  -H 'accept: */*' \
+  -H 'accept-language: en-US,en;q=0.9' \
+  -H 'origin: https://caenergy.maps.arcgis.com' \
+  -H 'referer: https://caenergy.maps.arcgis.com/home/webmap/viewer.html?layers=b662fc6de88c415fb232ed3dcf9d5d4e' \
+  -H 'sec-ch-ua: "Chromium";v="116", "Not)A;Brand";v="24", "Google Chrome";v="116"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "macOS"' \
+  -H 'sec-fetch-dest: empty' \
+  -H 'sec-fetch-mode: cors' \
+  -H 'sec-fetch-site: same-site' \
+  -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36' \
+  --compressed> /Users/jacobford/Desktop/pre_screened.json
+
+
+
+
 curl 'https://services7.arcgis.com/ZR2wjW0JGwgm9bhz/arcgis/rest/services/Federal_Poverty_150pct_2019/FeatureServer/0/query?f=json&geometry=-8780758.8418813%2C5294708.908659868&outFields=*&returnGeometry=false&spatialRel=esriSpatialRelIntersects&where=1%3D1&geometryType=esriGeometryPoint&inSR=102100' \
   -H 'authority: services7.arcgis.com' \
   -H 'accept: */*' \
