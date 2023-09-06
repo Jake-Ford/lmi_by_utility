@@ -1,0 +1,15 @@
+---
+title: "California"
+author: "Jacob Ford"
+date: "2023-08-25"
+output: html_document
+---
+
+# New Mexico
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+print("hello world")
+
+```
+

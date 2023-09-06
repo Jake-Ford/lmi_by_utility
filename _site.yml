@@ -5,3 +5,5 @@ navbar:
   right:
     - text: "Home"
       href: index.html
+    - text: "California"
+      href: California.html
