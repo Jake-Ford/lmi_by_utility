@@ -1962,6 +1962,21 @@ datatable(temp, caption = "Henry and Mercer 80% AMI LMI Population, Sources: ACS
 
 
 
+# Delaware
+
+## Geoqualification
+
+* Low-income Customer verification (*includes self-attestation*):
+    * (3) proof that the Low-income Customer lives in a census block where the median household income is at or below 200% of the U.S. Federal Poverty Guidelines or 60% of the state median household income published by the United States Census Bureau, whichever is greater
+    
+    
+    
+
+## LMI Qualificaiton
+
+    * (2) proof of participation in a low income discount program including Medicaid, SSI, TANF, GA, WIC, LIHEAP, SNAP or food stamps*
+
+
 
 # New Jersey
 
