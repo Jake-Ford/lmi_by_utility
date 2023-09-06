@@ -1970,7 +1970,7 @@ datatable(temp, caption = "Henry and Mercer 80% AMI LMI Population, Sources: ACS
     * (3) proof that the Low-income Customer lives in a census block where the median household income is at or below 200% of the U.S. Federal Poverty Guidelines or 60% of the state median household income published by the United States Census Bureau, whichever is greater
     
     
-    
+I'll use a modified 'over 50% of HHs living at or below 200% FPL' source: https://data.census.gov/table?q=B17026&g=040XX00US10,10$1400000,10$1500000&tid=ACSDT5Y2020.B17026    
 
 ## LMI Qualificaiton
 
