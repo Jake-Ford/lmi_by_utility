@@ -1772,195 +1772,6 @@ datatable(temp, caption = "Mercer County, Sources: ACS 2019 and HUD CHAS")%>%
 
 
 
-```{r echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
-
-## Henry Demographic Table
-
-temp <- henry_data %>%
-  st_point_on_surface() %>%
-  st_make_valid() %>%
-  st_join(temp_util %>% select(NAME),st_nn, k = 1)  %>%
- # st_join(temp_util %>% select(NAME)) %>%
-  st_drop_geometry()
-
-
-
-
-
-  
-```
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-# Count the occurrences of each geoid in the result
-geoid_counts <- temp %>%
-  group_by(GEOID) %>%
-  summarise(tag_count = n_distinct(NAME))
-
-# Update the "Name" attribute based on the conditions
-temp <- temp %>%
-  left_join(geoid_counts, by = "GEOID") %>%
-  mutate(NAME = ifelse(tag_count > 1, "AMEREN ILLINOIS COMPANY", NAME)) %>%
-  select(-tag_count) %>%
-  group_by(GEOID, NAME) %>%
-    summarize(`Total HH` = max(total_hh),
-            `Total Occupied HH` = max(total_occ_hh),
-            `Total Population` = max(total_pop)) %>%
-  group_by(NAME) %>%
-  summarize(`Total HH` = sum(`Total HH`),
-            `Total Occupied HH` = sum(`Total Occupied HH`),
-            `Total Population` = sum(`Total Population`)) %>%
-  adorn_totals("row") %>%
-  mutate('Total HH Pct' = `Total HH` / sum(henry_data$total_hh),
-         'Total HH Occupied Pct' = `Total Occupied HH` / sum(henry_data$total_occ_hh) ,
-         'Total Population Pct' = `Total Population` / sum(henry_data$total_pop) )
-
-
-
-
-datatable(temp, caption = "Henry County, Sources: ACS 2019 and HUD CHAS") %>%
-  formatCurrency('Total HH', currency = "", mark = ",", interval = 3, digits = 0) %>%
-  formatCurrency('Total Occupied HH', currency = "", mark = ",", interval = 3, digits = 0) %>%
-  formatCurrency('Total Population', currency = "", mark = ",", interval = 3, digits = 0) %>%
-  formatPercentage('Total HH Pct', digits = 2, interval = 3) %>%
-  formatPercentage('Total HH Occupied Pct', digits = 2, interval = 3) %>%
-  formatPercentage('Total Population Pct', digits = 2, interval = 3)
-
-```
-
-### LMI 
-
-```{r message=FALSE, warning=FALSE, include=FALSE}
-
-get_tracts <- get_acs(
-  geography="tract", 
-  state="IL",
-  county = c("131"),
-  variables=c("total_pop" = "B01001_001"),
-  year=2019, 
-  geometry=TRUE) %>%
-  mutate(total_pop = estimate) %>%
-  select(geoid=GEOID, geometry, total_pop)
-
-# Specify the variables you're interested in
-vars <- c("B01003_001",# total population
-          "B11001_001", # total households
-          "B25003_001" # total occupied households
-          ) 
-
-# Retrieve population data for Mercer County, Illinois
-total_data <- get_acs(
-  geography = "tract",
-  variables = c("total_pop" = "B01001_001"),
-  state = "IL",
-  county  = c("131", "073"),
-  year = 2019,
-  geometry = TRUE
-) %>%
-  group_by(geoid=GEOID, NAME) %>%
-  summarize(
-    total_pop = estimate
-  )
-# combine with HUD CHAS data
-
-temp <- il_geo %>%
-  filter(geoid %in% total_data$geoid)
-
-```
-
-
-
-
-
-
-
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-temp_util <- temp_util %>%
-  filter(NAME == "AMEREN ILLINOIS COMPANY")
-
-
-
-
-
-temp <- temp %>%
-  st_make_valid()
-
-temp_util <- temp_util %>%
-  st_make_valid()
-
-
-temp$total_area_tract <- st_area(temp)
-
-
-# Find the intersection of valid_iso_15 with total_nm_tracts
-intersecting_tracts <- st_intersection(temp, temp_util)
-
-# Calculate the area of valid_iso_15 that covers each tract
-intersecting_tracts$covered_area <- st_area(intersecting_tracts)
-
-temp <- temp %>%
-  filter(geoid %in% intersecting_tracts$geoid)
-
-
-# Calculate the proportion of coverage for each tract
-intersecting_tracts$proportion_coverage <- (intersecting_tracts$covered_area / temp$total_area_tract)
-
-
-# If you want to consider the 'snap' column for calculating the proportion
-# You can adjust the calculation based on your needs
-intersecting_tracts$proportion_80ami_coverage <- intersecting_tracts$proportion_coverage * intersecting_tracts$AMI_80
-intersecting_tracts$proportion_total_pop <- intersecting_tracts$proportion_coverage * intersecting_tracts$total_pop
-
-
-
-temp <- intersecting_tracts %>%
-  st_drop_geometry() %>%
-  group_by(geoid, name) %>%
-  summarize( 
-            total_80ami = max(AMI_80),
-            covered_area = sum(proportion_coverage),
-            total_pop = max(total_pop)) %>%
-  mutate(covered_prop = 
-            case_when(
-                as.numeric(covered_area) >= 100 ~ 1,
-                TRUE ~ as.numeric(covered_area))
-    
-    
-    ) %>%
-  mutate(
-    proportion_80ami = covered_prop * total_80ami,
-    proportion_total_pop = covered_prop * total_pop,
-    total_pop = total_pop
-  ) %>%
-  group_by(name) %>%
-  summarize(
-            LMI = sum(proportion_80ami),
-            Total_Covered_Pop = sum(proportion_total_pop),
-            Total_Pop = sum(total_pop))%>%
-  mutate(County = case_when(
-    grepl("Henry", name) ~ "Henry",
-    grepl("Mercer", name) ~ "Mercer"
-  )) %>%
-  group_by(County) %>%
-  summarize(LMI = round(sum(LMI),0),
-            Total_Covered_Pop = round(sum(Total_Covered_Pop),0),
-            Total_Pop = round(sum(Total_Pop),0)) %>%
-  adorn_totals("row")
-
-
-datatable(temp, caption = "Henry and Mercer 80% AMI LMI Population, Sources: ACS 2019 and HUD CHAS")%>%
-  formatCurrency('LMI',currency = "", interval = 3, mark = ",", digits = 0) %>%
-  formatCurrency('Total_Covered_Pop',currency = "", interval = 3, mark = ",", digits = 0) %>%
-  formatCurrency('Total_Pop',currency = "", interval = 3, mark = ",", digits = 0)
-
-
-```
-
-
-
 
 # Delaware
 
@@ -2170,14 +1981,317 @@ leaflet() %>%
 
 
 
-
-
-
 # New Jersey
+
+We focus on the New Jersey Community Solar Energy Program (CSEP) market. 
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+temp_util <- st_read("utility_zones/NJ/Electric_Utilities_Territory_Map_of_New_Jersey.shp") %>%
+  mutate(new_name = case_when(
+    grepl("Municipal", NAME) ~ "Municipal",
+    TRUE ~ NAME
+  ))
+
+temp_util <- st_make_valid(temp_util)
+
+nj_geo_qual <- st_read("data/NJ/hud_80pct_80ami/Low_to_Moderate_Income_Population_by_Block_Group.shp") %>%
+  mutate(total_pop = as.integer(Lowmoduniv),
+         geo_tag = case_when(
+           Lowmod_pct >= 0.8 ~ 1,
+           TRUE ~ 0
+         )
+         )
+
+  
+```
+
+
+
+
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+get_tracts <- get_acs(
+  geography="tract", 
+  state="NJ",
+  variables=c("Median Income" = "S1901_C01_012E"),
+  year=2019, 
+  geometry=TRUE) %>%
+  mutate(MedInc = estimate) %>%
+  select(geoid=GEOID, geometry)
+
+
+
+```
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+chas_df <- load_chas() %>%
+    mutate(State_Name = case_when(
+    state == 17 ~ "Illinois",
+    state == 25 ~ "Massachusetts",  
+    state == 27 ~ "Minnesota",  
+    state == 34 ~ "New Jersey",
+    state == 35 ~ "New Mexico",  
+    state == 36 ~ "New York",
+    state == 06 ~ "California",
+    TRUE ~ "Other"
+  )) %>%
+  filter(State_Name == "New Jersey")
+
+
+
+add_geo <- merge(chas_df, get_tracts) 
+
+add_geo <- st_as_sf(add_geo)
+
+
+temp_util <- st_transform(temp_util, st_crs(add_geo)) %>%
+  st_make_valid()
+```
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+pal5 <- colorFactor(
+  palette="viridis",
+  domain=temp_util$new_name
+)
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color=~pal5(temp_util$new_name),
+              dashArray="3",
+              fillOpacity=0.5,
+              popup=paste("Utility Zone: ", temp_util$new_name)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            values=temp_util$new_name,
+            title="Solstice NJ Utilities")
+```
+  
+
 
 ## Geoqualification
 
+The New Jersey CSEP program allows for geoqualification. Residents must reside within a census block group in which 80 percent or more of the households earn less than 80 percent of the area median income, as determined by data from the U.S. Department of Housing and Urban Development. 
+
+The below map shows the distribution of these households as defined by HUD: 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+
+
+pal5 <- colorFactor(
+  palette=c("lightgrey", "darkgreen"),
+  domain=nj_geo_qual$geo_tag
+)
+
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=nj_geo_qual,
+              group="Block Groups",
+             # stroke = TRUE,
+              color = ~pal5(nj_geo_qual$geo_tag),
+              fillOpacity=0.75,
+              popup=paste("Census Block Group: ", nj_geo_qual$GEOID, "<br>",
+                          "Population: ", nj_geo_qual$total_pop)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            values=nj_geo_qual$geo_tag,
+            title="NJ Geoqualified Census Block Groups")  %>%
+  
+    addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup=paste("Utility: ", temp_util$new_name)) %>%
+  
+      addLayersControl(
+    overlayGroups=c( "Block Groups", "Utility Zones"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+
+```
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+temp_table <- nj_geo_qual %>% 
+  st_drop_geometry() %>%
+  mutate(Geoqualified = case_when(
+    geo_tag == 1 ~ "Yes",
+    TRUE ~ "No"
+  )) %>%
+  group_by(Geoqualified) %>%
+
+  summarize(Population = sum(total_pop)) %>%
+  adorn_totals("row")
+
+
+datatable(temp_table, caption = "New Jersey Geoqualified Population") %>%
+    formatCurrency('Population',currency = "", interval = 3, digits = 0, mark = ",") 
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+
+
+
+temp_util <- st_transform(temp_util, st_crs(nj_geo_qual))
+
+temp_table <- nj_geo_qual %>% 
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  mutate(Geoqualified = case_when(
+    geo_tag == 1 ~ "Yes",
+    TRUE ~ "No"
+  )) %>%
+  group_by(Utility) %>%
+  summarize(Geoqualified = sum(total_pop[geo_tag == 1]),
+            NonGeoqualified = sum(total_pop[geo_tag == 0])) %>%
+  #summarize(Population = sum(total_pop)) %>%
+  adorn_totals("row")
+
+
+datatable(temp_table, caption = "New Jersey Geoqualified Population by Utility") %>%
+    formatCurrency('Geoqualified',currency = "", interval = 3, digits = 0, mark = ",") %>%
+    formatCurrency('NonGeoqualified',currency = "", interval = 3, digits = 0, mark = ",") 
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
 ## LMI Qualificaiton
+
+Self-attestation by the customer that their household income is less than 80 percent of the area median income, as determined by data from the U.S. Department of Housing and Urban Development, provided on a standard form to be approved by the Board and signed by the customer and recorded through an authorized administrator procured by the EDCs
+
+- we'll get CHAS data to estimate number of HHs at or below 80% of AMI
+
+
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+
+pal5 <- colorNumeric(
+  palette=c("Oranges"),
+  domain=add_geo$AMI_80
+)
+
+
+leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data=add_geo,
+              group="LMI",
+             # stroke = TRUE,
+              color = ~pal5(add_geo$AMI_80),
+              fillOpacity=0.75,
+              popup=paste("Census Block Group: ", add_geo$GEOID, "<br>",
+                          "Population < 80% AMI: ", add_geo$AMI_80)) %>%
+  addLegend(position="bottomright",
+            pal=pal5,
+            values=add_geo$AMI_80,
+            title="NJ LMI Population")  %>%
+  
+    addPolygons(data=temp_util,
+              group="Utility Zones",
+              stroke=TRUE,
+              color="black",
+              dashArray="3",
+              fillOpacity=0,
+              popup=paste("Utility: ", temp_util$new_name)) %>%
+  
+      addLayersControl(
+    overlayGroups=c( "LMI", "Utility Zones"),  # Update the order for consistency
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+
+```
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+temp_table <- add_geo %>% 
+  st_drop_geometry() %>%
+  mutate(var = 1) %>%
+  group_by(var) %>%
+  summarize(LMI_Pop = sum(AMI_80)) %>%
+  select(LMI_Pop) 
+
+
+datatable(temp_table, caption = "New Jersey Geoqualified Population") %>%
+    formatCurrency('LMI_Pop',currency = "", interval = 3, digits = 0, mark = ",") 
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+
+
+
+
+temp_util <- st_transform(temp_util, st_crs(add_geo))
+
+temp_table <- add_geo %>% 
+  st_point_on_surface() %>%
+  st_make_valid() %>%
+  st_join(temp_util %>% select(Utility = new_name)) %>%
+  st_drop_geometry() %>%
+  group_by(Utility) %>%
+  summarize(LMI_Pop = sum(AMI_80))%>%
+  adorn_totals("row")
+
+
+datatable(temp_table, caption = "New Jersey LMI Population by Utility") %>%
+    formatCurrency('LMI_Pop',currency = "", interval = 3, digits = 0, mark = ",") 
+
+
+```
+
+
+
+
+
 
 
 # Massachusetts
