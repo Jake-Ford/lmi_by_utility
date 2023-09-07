@@ -649,7 +649,9 @@ datatable(temp, caption = "New Mexico Distance from Public Housing and Selected 
 
 
 
-# New York (VDER ICSA)
+# New York 
+
+The VDER ISCA opeartes both geo- and income verification methods. 
 
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
@@ -715,7 +717,7 @@ total_ny_tracts <- cbind(ny_geo, ny_tracts)
 
 ## Geoqualification
 
-Residence in a DAC or EmPower pre-screened area. 
+Geoqualification requires a residence in: 
 
   * [Pre-screened areas](https://www.nyserda.ny.gov/ny/ahp-empower/geo-eligible-income-tool)
   * DAC interim [disadvantaged areas](https://data.ny.gov/Energy-Environment/Interim-Disadvantaged-Communities-DAC-2020/t6wd-tdrv)
@@ -731,8 +733,6 @@ We consider the following five utility zones in New York:
 
 
 ### Pre-screened areas
-
-**to-do**: note, recreating eligible block groups is not available. 
 
 
 ### DAC BGs
@@ -1352,7 +1352,7 @@ datatable(temp, caption = "Mercer County, Sources: ACS 2019 and HUD CHAS")%>%
 
 # Delaware
 
-Delaware's [Community Energy Facilities](https://depsc.delaware.gov/2022/02/01/community-energy-facilities-webpage/) program has an LMI carveout of 15%. LMI customers are defined via geoqualificaiton and income verification/self-attestation. 
+Delaware's [Community Energy Facilities](https://depsc.delaware.gov/2022/02/01/community-energy-facilities-webpage/) program has an LMI carveout of 15%. LMI customers are defined via geoqualificaiton and income verification/self-attestation. Limited number and avaialbility of utility data requires us to skip the utility overlays for Delaware. We will focus instead on estimating the total population considered for geo- and LMI qualification. 
 
 ## Geoqualification
 
@@ -1464,7 +1464,7 @@ datatable(temp_table, caption = "Delaware Geoqualified Population") %>%
 
 
 
-## LMI Qualificaiton {.tabset}
+## LMI Qualificaiton
 
 There exists a number of options to verify customer income. Including:
 
@@ -1477,39 +1477,11 @@ There exists a number of options to verify customer income. Including:
     
 We use SNAP or food stamp recipient data as a proxy for low income discount programs. To keep consistency with the geoqualified tracts, we use block groups, hence Medicaid population is not available at this level. 
 
-### SNAP
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 pal5 <- colorNumeric(
   palette=c("Oranges"),
   domain=get_blocks$snap_pop
-)
-
-
-leaflet() %>%
-  addProviderTiles("CartoDB.Positron") %>%
-  addPolygons(data=get_blocks,
-              group="Block Groups",
-             # stroke = TRUE,
-              color = ~pal5(get_blocks$snap_pop),
-              fillOpacity=0.75,
-              popup=paste("Census Block Group: ", get_blocks$GEOID, "<br>",
-                          "Percent under 200% FPL: ", get_blocks$pct_under_200FPL, "<br>",
-                          "Number under 200% FPL: ", get_blocks$total_under_200FPL)) %>%
-  addLegend(position="bottomright",
-            pal=pal5,
-            values=get_blocks$snap_pop,
-            title="DE SNAP Population") 
-
-  
-```
-
-### FPL
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-pal5 <- colorNumeric(
-  palette=c("Reds"),
-  domain=get_blocks$pct_under_200FPL
 )
 
 pal6 <- colorNumeric(
@@ -1518,49 +1490,54 @@ pal6 <- colorNumeric(
 )
 
 
+
 leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(data=get_blocks,
-              group="Percent",
+              group="SNAP",
              # stroke = TRUE,
-              color = ~pal5(get_blocks$pct_under_200FPL),
-              fillOpacity=0.65,
+              color = ~pal5(get_blocks$snap_pop),
+              fillOpacity=0.75,
               popup=paste("Census Block Group: ", get_blocks$GEOID, "<br>",
                           "Percent under 200% FPL: ", get_blocks$pct_under_200FPL, "<br>",
                           "Number under 200% FPL: ", get_blocks$total_under_200FPL)) %>%
   addLegend(position="bottomright",
             pal=pal5,
-            group = "Percent",
-            values=get_blocks$pct_under_200FPL,
-            title="DE Percent Under 200% FPL") %>%
+            group="SNAP",
+            values=get_blocks$snap_pop,
+            title="DE SNAP Population")  %>%
   
-    addPolygons(data=get_blocks,
-              group="Total",
+  addPolygons(data=get_blocks,
+              group="200% FPL",
              # stroke = TRUE,
               color = ~pal6(get_blocks$total_under_200FPL),
               fillOpacity=0.65,
               popup=paste("Census Block Group: ", get_blocks$GEOID, "<br>",
                           "Percent under 200% FPL: ", get_blocks$pct_under_200FPL, "<br>",
                           "Number under 200% FPL: ", get_blocks$total_under_200FPL)) %>%
-  addLegend(position="bottomright",
+  addLegend(position="bottomleft",
             pal=pal6,
-            group= "Total",
+            group= "200% FPL",
             values=get_blocks$total_under_200FPL,
             title="DE Total Under 200% FPL")  %>%
   
     addLayersControl(
-    overlayGroups=c( "Percent", "Total"),  # Update the order for consistency
+    overlayGroups=c( "SNAP", "200% FPL"),  # Update the order for consistency
     options = layersControlOptions(collapsed = FALSE)
-  )
+  ) %>%
+  hideGroup("SNAP")
+
+  
 
   
 ```
 
 
 
+
 # New Jersey
 
-We focus on the New Jersey Community Solar Energy Program (CSEP) market. 
+We focus on the New Jersey Community Solar Energy Program (CSEP) market. New Jersey residents are served by a variety of electric utilities, seen below: 
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 temp_util <- st_read("utility_zones/NJ/Electric_Utilities_Territory_Map_of_New_Jersey.shp") %>%
@@ -1581,7 +1558,6 @@ nj_geo_qual <- st_read("data/NJ/hud_80pct_80ami/Low_to_Moderate_Income_Populatio
 
   
 ```
-
 
 
 
@@ -1659,6 +1635,7 @@ leaflet() %>%
             title="Solstice NJ Utilities")
 ```
   
+For the CSEP program, both geo- and LMI verifications are allowed. 
 
 
 ## Geoqualification
@@ -1673,7 +1650,7 @@ The below map shows the distribution of these households as defined by HUD:
 
 
 pal5 <- colorFactor(
-  palette=c("lightgrey", "darkgreen"),
+  palette=c("white", "darkred"),
   domain=nj_geo_qual$geo_tag
 )
 
@@ -1709,6 +1686,7 @@ leaflet() %>%
 ```
 
 
+The table below shows that New Jersey has relatively limited geoqualification, less than 10% of the state population resides within a qualified census block group. 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -1729,6 +1707,8 @@ datatable(temp_table, caption = "New Jersey Geoqualified Population") %>%
 
 ```
 
+
+When broken down by utility zone, we see most of the customers who are geoqualified reside within PSEG: 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -1775,9 +1755,8 @@ datatable(temp_table, caption = "New Jersey Geoqualified Population by Utility")
 
 Self-attestation by the customer that their household income is less than 80 percent of the area median income, as determined by data from the U.S. Department of Housing and Urban Development, provided on a standard form to be approved by the Board and signed by the customer and recorded through an authorized administrator procured by the EDCs
 
-- we'll get CHAS data to estimate number of HHs at or below 80% of AMI
 
-
+We use HUD data that summarizes the total number of households living at or under 80% AMI. This is the total LMI addressable market in New Jersey that could be determined via self-attestation. 
 
 
 
@@ -1825,20 +1804,6 @@ leaflet() %>%
 
 
 
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-
-temp_table <- add_geo %>% 
-  st_drop_geometry() %>%
-  mutate(var = 1) %>%
-  group_by(var) %>%
-  summarize(LMI_Pop = sum(AMI_80)) %>%
-  select(LMI_Pop) 
-
-
-datatable(temp_table, caption = "New Jersey Geoqualified Population") %>%
-    formatCurrency('LMI_Pop',currency = "", interval = 3, digits = 0, mark = ",") 
-
-```
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
