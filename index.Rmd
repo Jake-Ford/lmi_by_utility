@@ -1,6 +1,7 @@
 ---
 title: "LMI Population Spatial Analysis"
-author: "Jacob Ford"
+subtitle: "Solstice"
+author: "Jacob Ford, Data Scientist"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
   rmdformats::material
