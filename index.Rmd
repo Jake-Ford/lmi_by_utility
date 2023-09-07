@@ -50,7 +50,7 @@ options(scipen = 100)
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
-state_list <- c("IL", "MA", "MN", "NJ", "NM", "NY",  "CA")
+state_list <- c("IL", "MA", "MN", "NJ", "NM", "NY",  "CA", "DE")
 
 hifld_df <- st_read("utility_zones/HIFLD/Electric_Retail_Service_Territories (1)/Electric_Retail_Service_Territories.shp") 
 
@@ -1972,6 +1972,60 @@ datatable(temp, caption = "Henry and Mercer 80% AMI LMI Population, Sources: ACS
     
     
 I'll use a modified 'over 50% of HHs living at or below 200% FPL' source: https://data.census.gov/table?q=B17026&g=040XX00US10,10$1400000,10$1500000&tid=ACSDT5Y2020.B17026    
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+
+
+get_tracts <- get_acs(
+  geography="tract", 
+  state=state_list,
+  variables=c("Median Income" = "S1901_C01_012E"),
+  year=2019, 
+  geometry=TRUE) %>%
+  mutate(MedInc = estimate) %>%
+  select(geoid=GEOID, geometry)
+
+
+```
+
+
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+chas_df <- load_chas() %>%
+    mutate(State_Name = case_when(
+    state == 17 ~ "Illinois",
+    state == 25 ~ "Massachusetts",  
+    state == 27 ~ "Minnesota",  
+    state == 34 ~ "New Jersey",
+    state == 35 ~ "New Mexico",  
+    state == 36 ~ "New York",
+    state == 06 ~ "California",
+    TRUE ~ "Other"
+  ))
+
+
+
+add_geo <- merge(chas_df, get_tracts) 
+
+add_geo <- st_as_sf(add_geo)
+
+nm_geo <- add_geo %>%
+  filter(State_Name=="Delaware")
+
+temp_util <- st_transform(temp_util, st_crs(nm_geo)) %>%
+  st_make_valid()
+```
+
+
+
+
+
+
 
 ## LMI Qualificaiton
 
