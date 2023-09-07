@@ -5,3 +5,7 @@
 test.R
 *.csv
 *.shp
+
+data/
+public_housing_temp/
+utility_zones/
